@@ -1,18 +1,16 @@
 {
-  "version": "1.4.0",
+  "version": "1.4.1",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
-  "sizeMB": 200.7,
-  "sha256": "1d3463c4e3408fc9628901e1ed97f98ec71d8d301811113f15376ce82caf354d",
-  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.0/Paperleaf-Setup-1.4.0-Windows-x64.exe",
+  "sizeMB": 200.8,
+  "sha256": "72359d6b581f61923fea8c6a5b5a36460c23350bada446cc7db485b7faa4c7ee",
+  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.1/Paperleaf-Setup-1.4.1-Windows-x64.exe",
   "date": "2026-11-04",
   "notes": [
-    "新增云端单词本：GPT 识别单词，保存释义、文献语境、例句与来源，支持复习和导出。",
-    "全文逐段中英对照翻译，逐段保存、暂停继续、失败重试与双语导出。",
-    "GPT 支持连续追问、独立对话历史、重新打开继续与保存重试。",
-    "按翻译、识别、问答、总结与 PPT 推荐账号可用模型及思考强度，偏好分别保存。",
-    "采用 shadcn/ui 统一工作台、阅读侧栏、输入控件、弹窗与单词本，改善对比度和布局。",
-    "显示 Codex 实际公开进展、计划与重试事件；仅在提供时显示公开思考摘要。",
-    "修复中文 Markdown 加粗、导入分析窗口抖动及桌面快捷方式图标。"
+    "复古文献馆界面：暖纸色、墨绿、衬线标题、细线书目和夜读主题。",
+    "Codex 默认采用 HTTP 流式兼容连接，减少部分网络或代理下的 WebSocket 握手问题；仍使用原账号登录与可用额度。",
+    "根据实际上游信息区分重试原因，保留次数与时间；未知原因明确标注。",
+    "连接窗口的“测试 GPT”显示首次输出时间、总耗时和重试次数。",
+    "8 次真实短材料测试全部完成且无重试；不同网络、模型和阅读范围仍可能产生不同耗时或重试。"
   ]
 }
