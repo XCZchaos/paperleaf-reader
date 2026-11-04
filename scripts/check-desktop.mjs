@@ -29,7 +29,7 @@ try{
  account={id:'fixture-owner-two'};await runtime.request('/status');assert.equal(calls.length,3);await runtime.disconnect();assert(calls[2].child.closed);
  const packageRoot=path.join(process.cwd(),'work/desktop/release/Paperleaf-win32-x64');
  for(const file of ['Paperleaf.exe','resources/codex/bin/codex.exe']){const data=await readFile(path.join(packageRoot,file));assert.equal(data.subarray(0,2).toString(),'MZ');const offset=data.readUInt32LE(0x3c);assert.equal(data.subarray(offset,offset+4).toString(),'PE\0\0');assert.equal(data.readUInt16LE(offset+4),0x8664);}
- for(const file of ['desktop/main.mjs','desktop/runtime.mjs','desktop/preload.cjs','companion/server.mjs','companion/rpc.mjs','companion/research.mjs'])assert.deepEqual(asar.extractFile(path.join(packageRoot,'resources/app.asar'),file),await readFile(file),file+' differs from source');
+ for(const file of ['desktop/main.mjs','desktop/runtime.mjs','desktop/updater.mjs','desktop/preload.cjs','companion/server.mjs','companion/rpc.mjs','companion/research.mjs'])assert.deepEqual(asar.extractFile(path.join(packageRoot,'resources/app.asar'),file),await readFile(file),file+' differs from source');
  const native=JSON.parse(await readFile(path.join(packageRoot,'resources/codex/codex-package.json'),'utf8'));assert.equal(native.entrypoint,'bin/codex.exe');assert.equal(native.version,'0.165.0');
  console.log('PASS: desktop authentication gate, parallel initialization, narrow IPC route validation, official OAuth URL checks, system-browser login dispatch, per-account Codex profiles, logout cleanup, Windows x64 package binaries and exact packaged source bytes.');
  console.log('Windows GUI, signed-in OAuth, and real model requests are not exercised by these Linux tests.');

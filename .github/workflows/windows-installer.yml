@@ -1,0 +1,56 @@
+name: Windows released installer
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to test
+        required: true
+        default: v1.2.0
+permissions:
+  contents: read
+jobs:
+  install-and-start-codex:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Download and verify released EXE
+        shell: pwsh
+        run: |
+          gh release download $env:RELEASE_TAG --pattern '*.exe' --dir work/installer
+          if ($LASTEXITCODE -ne 0) { throw 'Release download failed' }
+          $release = Get-Content desktop/release.json | ConvertFrom-Json
+          $installer = Get-ChildItem work/installer/*.exe | Select-Object -First 1
+          if ($installer.Length -gt 245MB) { throw 'Installer exceeds the 245 MiB release budget' }
+          Write-Output ('Released installer size: {0:N1} MiB' -f ($installer.Length / 1MB))
+          if ((Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower() -ne $release.sha256) { throw 'Installer SHA-256 mismatch' }
+          $process = Start-Process $installer.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
+          $install = (Get-ItemProperty HKCU:\Software\Paperleaf).InstallLocation
+          $installedVersion = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf).DisplayVersion
+          if ($installedVersion -ne $release.version) { throw 'Installed version mismatch' }
+          if (!(Test-Path "$install\Paperleaf.exe")) { throw 'Desktop executable missing' }
+          if (!(Test-Path "$install\Uninstall Paperleaf.exe")) { throw 'Uninstaller missing' }
+          "PAPERLEAF_TEST_CODEX_BINARY=$install\resources\codex\bin\codex.exe" >> $env:GITHUB_ENV
+          "PAPERLEAF_TEST_DESKTOP=$install\Paperleaf.exe" >> $env:GITHUB_ENV
+          Write-Output "PASS: released EXE installed successfully, version $installedVersion."
+      - name: Create a real thread with the installed Codex binary
+        run: node scripts/check-codex-protocol.mjs
+      - name: Desktop process starts
+        shell: pwsh
+        run: |
+          $desktop = Start-Process $env:PAPERLEAF_TEST_DESKTOP -PassThru
+          Start-Sleep -Seconds 12
+          $desktop.Refresh()
+          if ($desktop.HasExited) { throw "Desktop exited during startup: $($desktop.ExitCode)" }
+          Stop-Process -Id $desktop.Id
+          Write-Output 'PASS: installed desktop process remained running. Interactive sign-in and model requests are not covered by this smoke test.'

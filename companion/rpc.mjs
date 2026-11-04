@@ -32,7 +32,7 @@ export class CodexRPC extends EventEmitter {
       this.pending.set(id,{resolve,reject,timer}); this.send({id,method,params});
     });
   }
-  async initialize(){await this.request('initialize',{clientInfo:{name:'paperleaf_reader',title:'Paperleaf Reader',version:'1.1.1'},capabilities:{experimentalApi:true}});this.send({method:'initialized'});}
+  async initialize(){await this.request('initialize',{clientInfo:{name:'paperleaf_reader',title:'Paperleaf Reader',version:'1.2.0'},capabilities:{experimentalApi:true}});this.send({method:'initialized'});}
   failAll(message){if(this.closed)return;this.closed=true;for(const c of this.pending.values()){clearTimeout(c.timer);c.reject(Error(message))}this.pending.clear();this.emit('closed',message)}
   close(){this.failAll('连接程序已关闭');this.child.kill();}
 }

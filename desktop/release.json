@@ -1,8 +1,16 @@
 {
-  "version": "1.1.1",
+  "version": "1.2.0",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
-  "sizeMB": 309.8,
-  "sha256": "c40b9c7a869ee15ebad04d38b4c01bd6cfe3aeb010fe33e59de8754766bb86fa",
-  "downloadUrl": "https://chatgpt.com/library?file_id=libfile_550fcc82d73881918c43e453233636ca&account_id=personal"
+  "sizeMB": 200.3,
+  "sha256": "cc023eac6bbe09b8d7e5962c4881072df5616bb4d3f8477b01ace99c6506f2a5",
+  "downloadUrl": "https://chatgpt.com/library?file_id=libfile_728005a322a081919efb7cd3e25f38f7&account_id=personal",
+  "date": "2026-11-04",
+  "notes": [
+    "新增竖向连续阅读与横向翻页切换，记住阅读方式。",
+    "重整文献库与阅读界面，提高文字对比度，优化工具栏与笔记侧栏。",
+    "新增桌面更新检查、版本说明、下载校验与退出安装。",
+    "修复 Windows 普通用户权限下 Codex 创建会话失败，新增真实 GPT 测试入口。",
+    "优化安装包压缩，精简未使用的语言资源，保留中英文与完整 Codex。"
+  ]
 }

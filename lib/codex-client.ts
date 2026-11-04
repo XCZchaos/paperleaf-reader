@@ -1,6 +1,6 @@
 import type {CodexJob,PageText,ResearchKind} from './ai-types';
 import {desktopBridge} from './desktop';
-export function requireCurrentBridge(version?:string){const v=(version||'0').split('.').map(Number);if((v[0]||0)<1||(v[0]===1&&((v[1]||0)<1||(v[1]===1&&(v[2]||0)<1))))throw Error('请先升级至 Paperleaf 1.1.1 或更新版本，以修复 Codex 权限兼容问题。');}
+export function requireCurrentBridge(version?:string){const v=(version||'0').split('.').map(Number);if((v[0]||0)<1||(v[0]===1&&(v[1]||0)<2))throw Error('请先升级至 Paperleaf 1.2.0 或更新版本，以修复 Windows Codex 沙箱兼容问题。');}
 export const bridgeAddress='http://127.0.0.1:17624';
 export const pairKey='paperleaf-codex-pair';
 export async function bridgeCall<T=any>(path:string,options:RequestInit={}):Promise<T>{

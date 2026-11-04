@@ -8,7 +8,7 @@ await mkdir('work',{recursive:true});
 const temporary=await mkdtemp(path.join(process.cwd(),'work/paperleaf-protocol-'));
 const profile=path.join(temporary,'profile'),workdir=path.join(temporary,'reading');
 await mkdir(profile);await mkdir(workdir);
-const child=spawnCodexProfile(workdir,profile),rpc=new CodexRPC(child);
+const child=spawnCodexProfile(workdir,profile,{binaryPath:process.env.PAPERLEAF_TEST_CODEX_BINARY}),rpc=new CodexRPC(child);
 try {
  await rpc.initialize();assert.equal((await rpc.request('account/read',{refreshToken:false})).account,null);
  const config=await rpc.request('config/read',{includeLayers:false,cwd:workdir});

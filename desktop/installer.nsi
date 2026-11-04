@@ -1,10 +1,19 @@
 ; A per-user installer. Uninstaller generation happens on the user's Windows
 ; machine, so building does not require executing Windows code under Wine.
+; Compress the full payload once using solid LZMA.
+SetCompress force
+SetCompressor /SOLID lzma
+SetCompressorDictSize 32
 !include "MUI2.nsh"
 !include "x64.nsh"
 !include "WinVer.nsh"
 Unicode true
 Name "Paperleaf"
+VIProductVersion "${VERSION}.0"
+VIAddVersionKey "ProductName" "Paperleaf"
+VIAddVersionKey "FileDescription" "Paperleaf Installer"
+VIAddVersionKey "FileVersion" "${VERSION}"
+VIAddVersionKey "LegalCopyright" "Paperleaf"
 RequestExecutionLevel user
 InstallDir "$LOCALAPPDATA\Programs\Paperleaf"
 InstallDirRegKey HKCU "Software\Paperleaf" "InstallLocation"

@@ -1,6 +1,6 @@
-# Paperleaf 桌面版 1.1.1
+# Paperleaf 桌面版 1.2.0
 
-Windows 10/11 x64 安装版。下载 Paperleaf-Setup-1.1.1-Windows-x64.exe，双击并按向导安装；之后从桌面或开始菜单打开 Paperleaf。无需解压 ZIP、安装 Node.js、运行命令或输入配对码。
+Windows 10/11 x64 安装版。下载 Paperleaf-Setup-1.2.0-Windows-x64.exe，双击并按向导安装；之后从桌面或开始菜单打开 Paperleaf。无需解压 ZIP、安装 Node.js、运行命令或输入配对码。
 
 升级前关闭旧版 Paperleaf，安装后从新快捷方式启动。原云端文献与本机账号目录继续保留；旧免安装文件夹无需继续使用。可通过 Windows 设置卸载，本机账号目录与云端资料不会随卸载删除。
 
@@ -24,3 +24,9 @@ Windows 10/11 x64 安装版。下载 Paperleaf-Setup-1.1.1-Windows-x64.exe，双
 Electron 45.2.2 内置运行环境；官方 Codex 0.165.0 随包提供。账号、同步和权限逻辑经过自动化测试。已用真实 Codex 进程验证权限配置与请求解析，并用模型夹具验证流式结果处理，未消耗账号额度。安装向导与真实模型调用仍需 Windows 实机验证；构建环境是 Linux。
 
 源代码位于配套项目 desktop/、companion/、app/ 与 lib/。Electron、Codex 及 Chromium 相关许可证随程序提供。网站：https://paperleaf-xcz-reader.shamboo2003.chatgpt.site
+
+## 阅读与更新
+
+阅读器顶部可切换横向翻页和竖向连续阅读，会记住当前电脑的选择。文献库侧栏「版本与更新」或桌面菜单「检查更新与版本说明」可查看新版内容。更新包从同一私密网站下载，校验后点击「退出并安装」。首次从 1.1.x 升级仍需手动下载本版安装包。
+
+Codex 面板内「测试 GPT」会发送一句示例英文，通过真实回复验证整条链路，消耗少量账号额度。

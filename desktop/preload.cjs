@@ -1,4 +1,4 @@
 const {contextBridge,ipcRenderer}=require('electron');
 if(location.origin==='https://paperleaf-xcz-reader.shamboo2003.chatgpt.site'){
- contextBridge.exposeInMainWorld('paperleafDesktop',Object.freeze({version:'1.1.1',request:(path,options)=>ipcRenderer.invoke('paperleaf:codex',path,options),disconnect:()=>ipcRenderer.invoke('paperleaf:disconnect')}));
+ contextBridge.exposeInMainWorld('paperleafDesktop',Object.freeze({version:'1.2.0',request:(path,options)=>ipcRenderer.invoke('paperleaf:codex',path,options),disconnect:()=>ipcRenderer.invoke('paperleaf:disconnect'),update:action=>ipcRenderer.invoke('paperleaf:update',action)}));
 }
