@@ -12,6 +12,12 @@ const child=spawnCodexProfile(workdir,profile,{binaryPath:process.env.PAPERLEAF_
 try {
  await rpc.initialize();assert.equal((await rpc.request('account/read',{refreshToken:false})).account,null);
  const config=await rpc.request('config/read',{includeLayers:false,cwd:workdir});
+ assert.equal(config.config.model_provider,'paperleaf_chatgpt');
+ const provider=config.config.model_providers.paperleaf_chatgpt;
+ assert.equal(provider.requires_openai_auth,true);
+ assert.equal(provider.wire_api,'responses');
+ assert.equal(provider.supports_websockets,false);
+ assert(!provider.env_key&&!provider.base_url,'Codex must continue choosing the signed-in ChatGPT backend');
  assert.equal(config.config.default_permissions,'paperleaf_reading');
  const permissions=config.config.permissions.paperleaf_reading;
  assert.equal(permissions.filesystem[':root'],'read');

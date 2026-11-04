@@ -8,6 +8,7 @@ import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {CodexRPC} from './rpc.mjs';
 import {setStage,readingProgress,publicProgress,progressEvent} from './progress.mjs';
+import {READING_PROVIDER,READING_PROVIDER_CONFIG,CONNECTION_INFO} from './transport.mjs';
 import {validateRequest,promptFor,instructions,slideSchema,validateDeck,metadataSchema,validateMetadata,wordTranslationSchema,validateWordTranslation} from './research.mjs';
 
 export const SITE='https://paperleaf-xcz-reader.shamboo2003.chatgpt.site';
@@ -39,11 +40,13 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
       if(method==='turn/started')j.turnId=p.turn.id;
       if(method==='item/started'&&p.item.type==='agentMessage')j.items.set(p.item.id,{text:'',phase:p.item.phase});
       if(method==='item/agentMessage/delta'){
+        if(p.delta&&!j.firstResponseAt)j.firstResponseAt=Date.now();
         const old=j.items.get(p.itemId)||{text:'',phase:null};old.text+=p.delta;j.items.set(p.itemId,old);
         if(old.phase==='commentary'){j.activity=old.text.slice(-600);progressEvent(j,'commentary-'+p.itemId,'commentary','阅读进展',old.text,false);}else{j.text=old.text.slice(0,100000);setStage(j,'writing');}
         if(old.text.length>100000){void cancel(j);j.error='输出超过长度限制，请缩小阅读范围';}
       }
       if(method==='item/completed'&&p.item.type==='agentMessage'){
+        if(p.item.text&&!j.firstResponseAt)j.firstResponseAt=Date.now();
         j.items.set(p.item.id,{text:p.item.text,phase:p.item.phase});
         if(p.item.phase==='commentary'){j.activity=p.item.text.slice(-600);progressEvent(j,'commentary-'+p.item.id,'commentary','阅读进展',p.item.text,true);}else{j.text=p.item.text.slice(0,100000);setStage(j,'writing');}
       }
@@ -128,7 +131,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         const a=await account();let m=[],warning='';
         if(a){try{m=await models(a)}catch{warning='模型列表暂时不可用，可以使用 Codex 默认模型'}
           await readRates(u.searchParams.get('refresh')==='1');}
-        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,rateLimitsByLimitId:a?ratesById:null,rateLimitsUpdatedAt:a?rateTime:null,rateLimitsWarning:a?rateWarning:'',ordinaryUsageAllowed:a?ordinaryUsageAllowed:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,version:'1.4.0'});return;
+        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,rateLimitsByLimitId:a?ratesById:null,rateLimitsUpdatedAt:a?rateTime:null,rateLimitsWarning:a?rateWarning:'',ordinaryUsageAllowed:a?ordinaryUsageAllowed:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,connection:CONNECTION_INFO,version:'1.4.1'});return;
       }
       if(req.method==='POST'&&u.pathname==='/login'){
         if([...jobs.values()].some(active)){send(res,409,{error:'请先停止当前生成任务，再登录其他账号'});return;}
@@ -182,6 +185,7 @@ export function spawnCodexProfile(workdir,codexDataDir,options={}){
   // No unrestricted/no-sandbox fallback is permitted.
   const disabled=['shell_snapshot','remote_control','shell_tool','unified_exec','code_mode_host','apps','plugins','remote_plugin','hooks','browser_use','computer_use','multi_agent','multi_agent_v2','view_image','image_generation','skill_search','sleep_tool'];
   const args=[...(cli?[cli]:[]),'app-server','--listen','stdio://','-c','default_permissions="paperleaf_reading"','-c','permissions.paperleaf_reading.filesystem={":root"="read"}','-c','permissions.paperleaf_reading.network.enabled=false','-c','project_doc_max_bytes=0','-c','web_search="disabled"','-c',`cli_auth_credentials_store="${options.credentialStore==='auto'?'auto':'file'}"`,'-c','features.skip_host_skill_discovery=true',...disabled.flatMap(f=>['-c',`features.${f}=false`])];
+  args.push('-c',`model_provider="${READING_PROVIDER}"`,'-c',`model_providers.${READING_PROVIDER}=${READING_PROVIDER_CONFIG}`);
   return spawn(options.binaryPath||process.execPath,args,{cwd:workdir,env:childEnv,stdio:['pipe','pipe','pipe'],windowsHide:true});
 }
 

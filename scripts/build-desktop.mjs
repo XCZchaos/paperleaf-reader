@@ -8,7 +8,7 @@ const {version}=JSON.parse(await fs.readFile(path.join(root,'desktop/package.jso
 const codexVersion='0.165.0',electronVersion='45.2.2';
 await fs.mkdir(work,{recursive:true});await fs.rm(source,{recursive:true,force:true});await fs.mkdir(source,{recursive:true});
 await fs.mkdir(path.join(source,'desktop'));for(const name of ['main.mjs','runtime.mjs','updater.mjs','preload.cjs','package.json','README.md'])await fs.copyFile(path.join(root,'desktop',name),path.join(source,'desktop',name));await fs.copyFile(path.join(root,'desktop','package.json'),path.join(source,'package.json'));
-await fs.mkdir(path.join(source,'companion'),{recursive:true});for(const name of ['server.mjs','rpc.mjs','research.mjs','progress.mjs'])await fs.copyFile(path.join(root,'companion',name),path.join(source,'companion',name));
+await fs.mkdir(path.join(source,'companion'),{recursive:true});for(const name of ['server.mjs','rpc.mjs','research.mjs','progress.mjs','transport.mjs'])await fs.copyFile(path.join(root,'companion',name),path.join(source,'companion',name));
 await fs.cp(path.join(root,'desktop/assets'),path.join(source,'desktop/assets'),{recursive:true});
 const stamp=path.join(vendor,'version');
 if(await fs.readFile(stamp,'utf8').catch(()=>'')!==codexVersion){

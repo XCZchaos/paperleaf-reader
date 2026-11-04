@@ -4,11 +4,19 @@
 
 **[打开网页版](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site) · [Windows 发行版本](https://github.com/XCZchaos/paperleaf-reader/releases) · [English / Technical notes](README.en.md)**
 
+## 1.4.1 更新
+
+复古文献馆界面：暖纸色、墨绿、衬线标题和书目卡片。Codex 默认采用 HTTP 流式兼容连接，按真实上游信息区分重试原因；连接测试显示首次输出时间、总耗时和重试次数。
+
+[完整更新与验证范围](docs/releases/v1.4.1.md) · [界面预览](docs/images/paperleaf-retro-141.jpg)
+
+8 次真实 gpt-6.1-terra 低强度调用均完成且无重试；此网络未复现旧版问题，不能保证所有网络都零重试。额度刷新在测试账号环境仍有 HTTP 401，UI 会保留失败提示。
+
 ## 开始使用
 
 1. 网站入口公开。个人 PDF、笔记和 GPT 记录需要先通过 ChatGPT 验证身份，再登录 Paperleaf。
 2. 注册 Paperleaf 用户名和独立密码，保存账号恢复码；已有文献与笔记会保留。
-3. 从 Releases 下载 `Paperleaf-Setup-1.4.0-Windows-x64.exe`，双击并按向导安装；之后从桌面或开始菜单打开。
+3. 从 Releases 下载 `Paperleaf-Setup-1.4.1-Windows-x64.exe`，双击并按向导安装；之后从桌面或开始菜单打开。
 4. 在桌面版点击「使用 ChatGPT 登录」，在系统浏览器完成 Codex 官方授权，回到阅读器即可开启 GPT 功能。无需另装 Node.js、运行命令或填写配对码。
 
 Paperleaf 账号负责云端资料；Codex 授权保留在本机。换电脑时使用相同的 ChatGPT 网站访问身份和 Paperleaf 账号，Codex 需在新电脑重新授权。网站与仓库均公开访问；网站编辑权限仅归站点所有者。PDF 和记录仍按账号授权，公开访问不等于公开个人数据。
@@ -64,6 +72,7 @@ docs/releases/      版本说明
 pnpm install --frozen-lockfile
 pnpm exec tsc --noEmit
 node --experimental-vm-modules scripts/check-api.mjs
+node scripts/check-transport.mjs
 node scripts/check-companion.mjs
 node scripts/check-markdown.mjs
 node scripts/check-reading.mjs

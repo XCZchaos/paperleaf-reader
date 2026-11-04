@@ -34,6 +34,7 @@ try{
  const login=await json('/login',{method:'POST',body:{}});assert.equal(new URL(login.authUrl).hostname,'auth.openai.com');
  rpc.loggedIn=true;rpc.emit('notification',{method:'account/login/completed',params:{success:true}});
  const state=await json('/status');assert.equal(state.account.plan,'test');assert.equal(state.models[0].id,'fixture-model');assert(!JSON.stringify(state).includes('accessToken'));
+ assert.equal(state.connection.transport,'http-sse');
  assert.equal(state.rateLimits.primary.usedPercent,10);assert.equal(state.ordinaryUsageAllowed,false);const firstTime=state.rateLimitsUpdatedAt;
  rpc.used=42;assert.equal((await json('/status')).rateLimits.primary.usedPercent,10,'normal status caches');
  const fresh=await json('/status?refresh=1');assert.equal(fresh.rateLimits.primary.usedPercent,42);assert(fresh.rateLimitsUpdatedAt>=firstTime);assert.equal(fresh.rateLimitsByLimitId.codex.primary.usedPercent,42);
@@ -47,9 +48,15 @@ try{
  event('item/completed',{item:{id:'r1',type:'reasoning',summary:['完成的公开摘要'],content:['RAW_REASONING_MUST_NOT_APPEAR']}});
  event('item/started',{item:{id:'comment',type:'agentMessage',phase:'commentary'}});event('item/agentMessage/delta',{itemId:'comment',delta:'正在整理文献'});
  status=await json('/jobs/'+job.id);assert.equal(status.text,'');assert.equal(status.activity,'正在整理文献');assert.equal(status.reasoningSummary,'完成的公开摘要');assert(!JSON.stringify(status).includes('RAW_REASONING'));
- event('error',{willRetry:true,error:{message:'retry fixture'}});event('turn/plan/updated',{plan:[{step:'核对研究问题',status:'inProgress'}]});
+ event('error',{willRetry:true,error:{message:'retry fixture'}});
+ status=await json('/jobs/'+job.id);assert.equal(status.lastRetry.reason,'unknown');
+ event('error',{willRetry:true,error:{message:'SECRET_DO_NOT_FORWARD https://example.invalid/?token=private',codexErrorInfo:{httpConnectionFailed:{httpStatusCode:503}}}});
+ status=await json('/jobs/'+job.id);assert.equal(status.lastRetry.reason,'server');assert.equal(status.lastRetry.httpStatus,503);assert.equal(status.retryCount,2);assert(!JSON.stringify(status).includes('SECRET_DO_NOT_FORWARD'));assert(!JSON.stringify(status).includes('token=private'));
+ assert.equal(rpc.calls.filter(x=>x.method==='turn/start').length,1,'Retries must not create another billable task');
+ event('turn/plan/updated',{plan:[{step:'核对研究问题',status:'inProgress'}]});
  rpc.emit('notification',{method:'item/agentMessage/delta',params:{threadId:job.threadId,turnId:job.turnId,itemId:'answer',delta:'Fixture answer'}});
  assert.equal((await json('/jobs/'+job.id)).text,'Fixture answer');
+ assert((await json('/jobs/'+job.id)).firstResponseAt>=job.created);
  rpc.emit('notification',{method:'item/completed',params:{threadId:job.threadId,item:{id:'answer',type:'agentMessage',phase:'final_answer',text:'Verified fixture [p.1]'}}});
  rpc.emit('notification',{method:'turn/completed',params:{threadId:job.threadId,turn:{status:'completed'}}});
  const finished=await json('/jobs/'+job.id);assert.equal(finished.status,'completed');assert.equal(finished.stage,'completed');assert(finished.completedAt>=finished.created);assert(!finished.text.includes('正在整理文献'));assert(finished.events.some(e=>e.kind==='commentary'&&e.text==='正在整理文献'));assert(finished.events.some(e=>e.kind==='retry'));assert(finished.events.some(e=>e.kind==='plan'&&e.text.includes('核对研究问题')));assert(!JSON.stringify(finished).includes('RAW_REASONING'));

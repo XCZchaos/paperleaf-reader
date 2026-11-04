@@ -23,5 +23,9 @@ jobs:
           Copy-Item -Recurse work/ci-codex/node_modules/@openai/* node_modules/@openai/
       - name: Start real Windows Codex thread with reading permissions
         run: node scripts/check-codex-protocol.mjs
+      - name: Verify retry diagnosis and single-task behavior
+        run: |
+          node scripts/check-transport.mjs
+          node scripts/check-companion.mjs
       - name: Verify updater integrity and launch gating
         run: node scripts/check-updater.mjs

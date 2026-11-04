@@ -13,6 +13,7 @@ export function progressEvent(job,id,kind,title,text='',done=true){
 function storeSummary(job,id,parts){let remaining=Math.max(0,MAX_SUMMARY-[...job.summaries.entries()].filter(([key])=>key!==id).flatMap(([,v])=>v).reduce((n,s)=>n+s.length,0));job.summaries.set(id,parts.map(s=>{const text=String(s||'').slice(0,remaining);remaining-=text.length;return text}));}
 export function setStage(job,stage){if(job.stage!==stage)progressEvent(job,'stage-'+stage,'stage',titles[stage]||stage);job.stage=stage;job.updated=Date.now();}
 export function readingProgress(job,method,p){
+ if(method==='item/agentMessage/delta'||method==='item/reasoning/summaryTextDelta'||method==='item/completed')job.retrying=false;
  if(method==='turn/started')setStage(job,'thinking');
  if(method==='item/started'&&p.item?.type==='reasoning')setStage(job,'thinking');
  // Consume only public summaries. Never consume reasoning/textDelta or content.
@@ -36,6 +37,11 @@ export function readingProgress(job,method,p){
  }
  if(method==='item/completed'&&p.item?.type==='plan')progressEvent(job,'plan-'+p.item.id,'plan','阅读计划',p.item.text,true);
  if(method==='item/started'&&p.item?.type==='contextCompaction')progressEvent(job,'context','stage','正在整理对话上下文');
- if(method==='error'&&p.willRetry){job.retries=(job.retries||0)+1;progressEvent(job,'retry-'+job.retries,'retry',`连接重试 · 第 ${job.retries} 次`,'Codex 正在重新尝试请求。');}
+ if(method==='error'&&p.willRetry){
+  job.retrying=true;job.retries=(job.retries||0)+1;job.lastRetry={...retryDiagnosis(p.error),at:Date.now()};
+  const r=job.lastRetry;
+  progressEvent(job,'retry-'+job.retries,'retry',`${r.label} · 第 ${job.retries} 次`,`${r.detail}${r.httpStatus?`（HTTP ${r.httpStatus}）`:''}`);
+ }
 }
-export function publicProgress(job){return {stage:job.stage,events:job.events||[],reasoningSummary:[...job.summaries.values()].flat().filter(Boolean).join('\n\n').slice(0,MAX_SUMMARY),activity:job.activity||'',updated:job.updated,completedAt:job.completedAt||null};}
+export function publicProgress(job){return {stage:job.stage,events:job.events||[],retryCount:job.retries||0,retrying:!!job.retrying,lastRetry:job.lastRetry||null,firstResponseAt:job.firstResponseAt||null,reasoningSummary:[...job.summaries.values()].flat().filter(Boolean).join('\n\n').slice(0,MAX_SUMMARY),activity:job.activity||'',updated:job.updated,completedAt:job.completedAt||null};}
+import {retryDiagnosis} from './transport.mjs';

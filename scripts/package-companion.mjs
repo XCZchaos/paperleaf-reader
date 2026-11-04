@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const JSZip=require(require.resolve('jszip',{paths:[path.dirname(require.resolve('pptxgenjs'))]}));
 const zip=new JSZip();
-for(const name of ['package.json','README.md','server.mjs','rpc.mjs','research.mjs','progress.mjs','start-windows.cmd','start-macos.command']){
+for(const name of ['package.json','README.md','server.mjs','rpc.mjs','research.mjs','progress.mjs','transport.mjs','start-windows.cmd','start-macos.command']){
  let data=await fs.readFile(path.join('companion',name));
  if(name.endsWith('.cmd'))data=Buffer.from(data.toString().replace(/\r?\n/g,'\r\n'));
  zip.file('paperleaf-codex/'+name,data,{unixPermissions:name.endsWith('.command')?0o100755:0o100644});

@@ -39,3 +39,7 @@ Node.js HTTP → 本机 stdio / JSON-RPC → 官方 Codex App Server。先 initi
 阅读线程使用独立空目录、只读受限访问，关闭 shell、MCP apps、插件、浏览器、文件图像与多代理等工具；所有审批请求拒绝。请勿把此程序部署成公开网络服务。官方文档：https://learn.chatgpt.com/docs/app-server
 
 配套源码随下载包提供；Codex npm 包遵循其 Apache-2.0 许可证。
+
+## 1.4.1 连接兼容模式
+
+使用 requires_openai_auth 的独立 HTTP Responses provider，保留 Codex 的 ChatGPT 登录与后端选择，不读取或复制登录凭据，不使用 API Key。禁用模型连接的 WebSocket 握手；按 Codex 返回的类型展示真实重试原因、次数和首次输出时间。升级后重启连接程序。HTTP 仍可能遇到限流、服务错误或网络中断，无法保证零重试。
