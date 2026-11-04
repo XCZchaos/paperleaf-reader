@@ -114,7 +114,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         const a=await account();let m=[],warning='';
         if(a){try{m=await models(a)}catch{warning='模型列表暂时不可用，可以使用 Codex 默认模型'}
           if(Date.now()-rateTime>60000){rateTime=Date.now();try{rates=(await rpc.request('account/rateLimits/read',{},6000)).rateLimits}catch{rates=null;}}}
-        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,version:'1.1.1'});return;
+        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,version:'1.2.0'});return;
       }
       if(req.method==='POST'&&u.pathname==='/login'){
         if([...jobs.values()].some(active)){send(res,409,{error:'请先停止当前生成任务，再登录其他账号'});return;}
@@ -163,8 +163,11 @@ export function spawnCodexProfile(workdir,codexDataDir,options={}){
   delete childEnv.OPENAI_API_KEY;delete childEnv.CODEX_API_KEY;
   // Do not attach this independent reader to a parent Codex execution session.
   for(const name of ['CODEX_EXEC_SERVER_REMOTE_BASE_URL','CODEX_ENVIRONMENT_ID','CODEX_SESSION_ID','CODEX_THREAD_ID','CODEX_TOOL_CALL_ID'])delete childEnv[name];
+  // Windows' standard-user sandbox cannot enforce denied read roots. Use a
+  // portable read-only policy, disable project instruction discovery and all tools.
+  // No unrestricted/no-sandbox fallback is permitted.
   const disabled=['shell_snapshot','remote_control','shell_tool','unified_exec','code_mode_host','apps','plugins','remote_plugin','hooks','browser_use','computer_use','multi_agent','multi_agent_v2','view_image','image_generation','skill_search','sleep_tool'];
-  const args=[...(cli?[cli]:[]),'app-server','--listen','stdio://','-c','default_permissions="paperleaf_reading"','-c','permissions.paperleaf_reading.filesystem={":root"="deny",":workspace_roots"="read"}','-c','permissions.paperleaf_reading.network.enabled=false','-c','web_search="disabled"','-c',`cli_auth_credentials_store="${options.credentialStore==='auto'?'auto':'file'}"`,'-c','features.skip_host_skill_discovery=true',...disabled.flatMap(f=>['-c',`features.${f}=false`])];
+  const args=[...(cli?[cli]:[]),'app-server','--listen','stdio://','-c','default_permissions="paperleaf_reading"','-c','permissions.paperleaf_reading.filesystem={":root"="read"}','-c','permissions.paperleaf_reading.network.enabled=false','-c','project_doc_max_bytes=0','-c','web_search="disabled"','-c',`cli_auth_credentials_store="${options.credentialStore==='auto'?'auto':'file'}"`,'-c','features.skip_host_skill_discovery=true',...disabled.flatMap(f=>['-c',`features.${f}=false`])];
   return spawn(options.binaryPath||process.execPath,args,{cwd:workdir,env:childEnv,stdio:['pipe','pipe','pipe'],windowsHide:true});
 }
 
