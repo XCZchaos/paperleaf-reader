@@ -1,0 +1,9 @@
+{
+  "name": "paperleaf-codex-companion",
+  "version": "1.1.1",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {"start": "node server.mjs"},
+  "dependencies": {"@openai/codex": "0.165.0"}
+}

@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1793763146154,
+      "tag": "0000_magenta_angel",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793763194132,
+      "tag": "0001_long_ultimo",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793764813458,
+      "tag": "0002_glossy_boomerang",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793765619351,
+      "tag": "0003_daffy_edwin_jarvis",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793767620369,
+      "tag": "0004_naive_ezekiel_stane",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+import {identity,db,fail,json,body,str} from '@/lib/server';
+export async function GET(req:Request){try{const owner=await identity(req);return json((await db().prepare('SELECT id,name FROM collections WHERE owner=? ORDER BY created').bind(owner).all()).results);}catch(e){return fail(e);}}
+export async function POST(req:Request){try{const owner=await identity(req),b=await body(req),name=str(b.name,60).trim();if(!name)throw new Error('请输入主题名称');const old=await db().prepare('SELECT id,name FROM collections WHERE owner=? AND name=?').bind(owner,name).first();if(old)return json(old);const id=crypto.randomUUID();await db().prepare('INSERT INTO collections VALUES (?,?,?,?)').bind(id,owner,name,Date.now()).run();return json({id,name});}catch(e){return fail(e);}}
