@@ -90,7 +90,7 @@ node scripts/build-installer.mjs
 
 真实 Codex 账号通过应用连接程序完成了翻译、带页码引用的问答、标题和作者识别、总结与 6 页结构化汇报。使用示例文献，模型为 gpt-6.1-sol；不是模拟模型返回值。连接面板的「测试 GPT」可在当前电脑发送一句示例英文，再次验证实际调用。
 
-[Windows 自动检查已通过](https://github.com/XCZchaos/paperleaf-reader/actions/runs/41784206187)：真实 Codex 进程和会话创建，以及更新包完整性、篡改拒绝、取消和安装入口校验。发布流程还会安装实际 EXE，测试安装后的内置 Codex 与桌面进程启动。
+[Windows 自动检查已通过](https://github.com/XCZchaos/paperleaf-reader/actions/runs/41784206187)：真实 Codex 进程和会话创建，以及更新包完整性、篡改拒绝、取消和安装入口校验。[实际发行安装包检查也已通过](https://github.com/XCZchaos/paperleaf-reader/actions/runs/41791721574)：下载并校验 EXE、实际安装、版本注册、内置 Codex 会话创建和桌面程序启动。
 
 TypeScript、网站构建、PDF 连续滚动与页码跳转、划词透明文本层、摘录页码、账号/笔记/同步接口、PPTX 导出均已检查。Windows 交互式登录和个人网络环境仍需在用户电脑验证。安装包是未签名预览版。
 

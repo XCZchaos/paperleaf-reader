@@ -30,6 +30,8 @@ try {
  await assert.rejects(rpc.request('turn/start',turn),/thread.*(not found|unknown)|no thread found/i);
  console.log('PASS: Codex 0.165.0 initialize/account, registered restricted permission profile (portable read-only, project instructions disabled, tool network disabled), real thread startup, old-parameter regression and current turn decoding. No inference was attempted.');
 } finally {
- rpc.close();await Promise.race([new Promise(r=>{if(child.exitCode!==null)r();else child.once('exit',r)}),new Promise(r=>setTimeout(()=>{child.kill('SIGKILL');r()},1000))]);
- await rm(temporary,{recursive:true,force:true});
+ // Close the inherited stdin pipe as well as the npm launcher. On Windows the
+ // native child can briefly retain its cwd after the launcher reports exit.
+ child.stdin.end();rpc.close();await Promise.race([new Promise(r=>{if(child.exitCode!==null)r();else child.once('close',r)}),new Promise(r=>setTimeout(()=>{child.kill('SIGKILL');r()},1000))]);
+ await rm(temporary,{recursive:true,force:true,maxRetries:12,retryDelay:150});
 }
