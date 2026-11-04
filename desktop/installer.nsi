@@ -19,6 +19,8 @@ InstallDir "$LOCALAPPDATA\Programs\Paperleaf"
 InstallDirRegKey HKCU "Software\Paperleaf" "InstallLocation"
 ShowInstDetails show
 ShowUninstDetails show
+!define MUI_ICON "${PROJECT_DIR}/desktop/assets/paperleaf.ico"
+!define MUI_UNICON "${PROJECT_DIR}/desktop/assets/paperleaf.ico"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN "$INSTDIR\Paperleaf.exe"
 !insertmacro MUI_PAGE_WELCOME

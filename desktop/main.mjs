@@ -8,6 +8,7 @@ import {SITE} from '../companion/server.mjs';
 const directory=path.dirname(fileURLToPath(import.meta.url));
 let window,runtime,updater,quitting=false;
 app.setName('Paperleaf');
+if(process.platform==='win32')app.setAppUserModelId('com.paperleaf.reader');
 const permittedAuthHosts=new Set(['chatgpt.com','auth.openai.com','auth0.openai.com','accounts.google.com','login.microsoftonline.com','login.live.com','appleid.apple.com']);
 function permittedNavigation(url){try{const u=new URL(url);return u.protocol==='https:'&&(u.origin===SITE||permittedAuthHosts.has(u.hostname))}catch{return false}}
 function trusted(event){if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame||new URL(event.senderFrame.url).origin!==SITE)throw Error('请求来源不受支持');}
@@ -27,7 +28,7 @@ if(!app.requestSingleInstanceLock()){app.quit()}else{
   ipcMain.handle('paperleaf:update',(event,action)=>{trusted(event);return updater.request(action)});
   ipcMain.handle('paperleaf:codex',(event,route,options)=>{trusted(event);return runtime.request(route,options)});
   ipcMain.handle('paperleaf:disconnect',event=>{trusted(event);return runtime.disconnect()});
-  window=new BrowserWindow({width:1380,height:920,minWidth:1000,minHeight:680,title:'Paperleaf',backgroundColor:'#f7f8f2',show:false,webPreferences:{preload:path.join(directory,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true,allowRunningInsecureContent:false,partition:'persist:paperleaf-cloud',spellcheck:false}});
+  window=new BrowserWindow({width:1380,height:920,minWidth:1000,minHeight:680,title:'Paperleaf',icon:path.join(directory,'assets/paperleaf.ico'),backgroundColor:'#f5f6f3',show:false,webPreferences:{preload:path.join(directory,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true,allowRunningInsecureContent:false,partition:'persist:paperleaf-cloud',spellcheck:false}});
   window.once('ready-to-show',()=>window.show());
   let lastCheck=0;window.webContents.on('did-finish-load',()=>{try{if(new URL(window.webContents.getURL()).origin===SITE&&Date.now()-lastCheck>21600000){lastCheck=Date.now();void updater.check();}}catch{}});
   window.webContents.on('will-navigate',(event,url)=>{if(!permittedNavigation(url)){event.preventDefault();return;}if(new URL(url).origin!==SITE)void runtime.disconnect();});

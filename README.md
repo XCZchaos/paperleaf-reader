@@ -6,12 +6,12 @@
 
 ## 开始使用
 
-1. 网页版保留 ChatGPT 私密访问保护，先使用原来的 ChatGPT 身份完成验证。
+1. 网站入口公开。个人 PDF、笔记和 GPT 记录需要先通过 ChatGPT 验证身份，再登录 Paperleaf。
 2. 注册 Paperleaf 用户名和独立密码，保存账号恢复码；已有文献与笔记会保留。
-3. 从 Releases 下载 `Paperleaf-Setup-1.2.0-Windows-x64.exe`，双击并按向导安装；之后从桌面或开始菜单打开。
+3. 从 Releases 下载 `Paperleaf-Setup-1.3.0-Windows-x64.exe`，双击并按向导安装；之后从桌面或开始菜单打开。
 4. 在桌面版点击「使用 ChatGPT 登录」，在系统浏览器完成 Codex 官方授权，回到阅读器即可开启 GPT 功能。无需另装 Node.js、运行命令或填写配对码。
 
-Paperleaf 账号负责云端资料；Codex 授权保留在本机。换电脑时使用相同的 ChatGPT 网站访问身份和 Paperleaf 账号，Codex 需在新电脑重新授权。当前网站为个人私密空间，GitHub 仓库可见性不会改变网站的访问范围。
+Paperleaf 账号负责云端资料；Codex 授权保留在本机。换电脑时使用相同的 ChatGPT 网站访问身份和 Paperleaf 账号，Codex 需在新电脑重新授权。网站与仓库均公开访问；网站编辑权限仅归站点所有者。PDF 和记录仍按账号授权，公开访问不等于公开个人数据。
 
 ## 功能
 
@@ -64,6 +64,7 @@ pnpm install --frozen-lockfile
 pnpm exec tsc --noEmit
 node --experimental-vm-modules scripts/check-api.mjs
 node scripts/check-companion.mjs
+node scripts/check-markdown.mjs
 node scripts/check-codex-protocol.mjs
 node scripts/check-pptx.mjs
 node scripts/check-updater.mjs
@@ -86,18 +87,25 @@ node scripts/build-installer.mjs
 
 修改 `companion/` 后，还需运行 `node scripts/package-companion.mjs` 更新浏览器连接程序下载包。数据库已有迁移不可改写，结构变化请添加新迁移。
 
-## v1.2.0 验证范围
+## v1.3.0 更新与验证
 
-真实 Codex 账号通过应用连接程序完成了翻译、带页码引用的问答、标题和作者识别、总结与 6 页结构化汇报。使用示例文献，模型为 gpt-6.1-sol；不是模拟模型返回值。连接面板的「测试 GPT」可在当前电脑发送一句示例英文，再次验证实际调用。
+- GPT 回复、译文和笔记自动渲染标题、列表、表格、代码与公式；PDF 页码可跳转，仍支持 Markdown 导出。
+- 新应用图标与阅读界面；拖拽目录/侧栏宽度、键盘微调、双击复位、布局记忆，输入区域可调整高度。
+- 生成时显示实际阶段、耗时、输出字符数和模型提供的公开思考摘要。未提供摘要时明确提示，不展示原始内部推理。
+- Codex 面板刷新实际账号额度，支持多个额度窗口、剩余比例、重置时间、更新时间与失败状态。
+- 思考强度来自当前模型的可选档位，应用于翻译、问答、总结、信息识别和 PPT；切换模型会恢复默认。
 
-[Windows 自动检查已通过](https://github.com/XCZchaos/paperleaf-reader/actions/runs/41784206187)：真实 Codex 进程和会话创建，以及更新包完整性、篡改拒绝、取消和安装入口校验。[实际发行安装包检查也已通过](https://github.com/XCZchaos/paperleaf-reader/actions/runs/41791721574)：下载并校验 EXE、实际安装、版本注册、内置 Codex 会话创建和桌面程序启动。
+真实账号通过生产连接程序完成翻译、引用问答、文献信息识别、总结、6 页汇报及指定思考强度测试。界面交互测试使用明确标注的示例数据；与真实模型测试分开。当前构建环境的用量接口拒绝其登录令牌，因此真实额度数值未在此环境验证；刷新成功、失败、缓存和退出隔离通过协议测试。模型可以不提供思考摘要，本次真实调用未返回摘要。
 
-TypeScript、网站构建、PDF 连续滚动与页码跳转、划词透明文本层、摘录页码、账号/笔记/同步接口、PPTX 导出均已检查。Windows 交互式登录和个人网络环境仍需在用户电脑验证。安装包是未签名预览版。
+TypeScript、Markdown 安全渲染、账号隔离、连接程序、Windows 包完整性及更新流程纳入验证。Windows 交互式 OAuth 和个人网络配置仍需用户电脑验证。安装包尚未代码签名。
 
-详细说明见 [v1.2.0 发行说明](docs/releases/v1.2.0.md)。
+详细说明见 [v1.3.0 发行说明](docs/releases/v1.3.0.md)。
 
 ## 第三方组件
 
 第三方许可证保留在对应目录及发行包中。Electron、Chromium、Codex、PDF.js 等遵循各自许可证；本项目目前未另行指定开源许可证。
 
-网页版源码基线：`44b9e4c05d41665c171198590f079653ba98b0d4`。GitHub 归档补充中文说明、发行文档和项目名称/版本信息；应用运行代码与此已发布基线一致。
+
+界面摄影与图标说明见 [素材来源](public/ASSET-CREDITS.md)。
+
+网页版源码基线：`4bf36b0045776c656edebee93d45baf27fb1ddcb`。本版安装包 200.7 MiB；可从 [v1.3.0 Release](https://github.com/XCZchaos/paperleaf-reader/releases/tag/v1.3.0) 直接下载 EXE。

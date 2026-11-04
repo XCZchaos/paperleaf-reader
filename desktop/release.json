@@ -1,16 +1,17 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
-  "sizeMB": 200.3,
-  "sha256": "cc023eac6bbe09b8d7e5962c4881072df5616bb4d3f8477b01ace99c6506f2a5",
-  "downloadUrl": "https://chatgpt.com/library?file_id=libfile_728005a322a081919efb7cd3e25f38f7&account_id=personal",
+  "sizeMB": 200.7,
+  "sha256": "8279595f975fce582c5fffcddc9d706c16127089eb001e06432dbe1bfb037f33",
+  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.3.0/Paperleaf-Setup-1.3.0-Windows-x64.exe",
   "date": "2026-11-04",
   "notes": [
-    "新增竖向连续阅读与横向翻页切换，记住阅读方式。",
-    "重整文献库与阅读界面，提高文字对比度，优化工具栏与笔记侧栏。",
-    "新增桌面更新检查、版本说明、下载校验与退出安装。",
-    "修复 Windows 普通用户权限下 Codex 创建会话失败，新增真实 GPT 测试入口。",
-    "优化安装包压缩，精简未使用的语言资源，保留中英文与完整 Codex。"
+    "GPT 回复、译文和笔记支持标题、列表、表格、代码、公式与页码跳转。",
+    "新增应用图标与阅读设计；目录和右侧栏可拖动调整，记住布局。",
+    "显示实际生成阶段、耗时、输出长度及模型提供的公开思考摘要。",
+    "Codex 连接窗口支持刷新额度、查看剩余比例与重置时间。",
+    "按当前模型能力选择思考强度，用于翻译、问答、识别、总结和 PPT。",
+    "网站与仓库公开，网站编辑仅限所有者，个人资料仍需账号登录。"
   ]
 }

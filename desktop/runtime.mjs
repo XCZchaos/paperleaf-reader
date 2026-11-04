@@ -5,7 +5,7 @@ import {createBridge,spawnCodexProfile,SITE} from '../companion/server.mjs';
 import {CodexRPC} from '../companion/rpc.mjs';
 export function validateDesktopRequest(route,options={}){
  const method=options.method||'GET';
- const allowed=method==='GET'&&(route==='/status'||/^\/jobs\/[a-zA-Z0-9-]{16,64}$/.test(route))||method==='POST'&&(['/login','/login/cancel','/logout','/jobs'].includes(route)||/^\/jobs\/[a-zA-Z0-9-]{16,64}\/cancel$/.test(route));
+ const allowed=method==='GET'&&(route==='/status'||route==='/status?refresh=1'||/^\/jobs\/[a-zA-Z0-9-]{16,64}$/.test(route))||method==='POST'&&(['/login','/login/cancel','/logout','/jobs'].includes(route)||/^\/jobs\/[a-zA-Z0-9-]{16,64}\/cancel$/.test(route));
  if(!allowed||typeof route!=='string')throw Error('不支持的阅读操作');
  if(options.body!==undefined&&(typeof options.body!=='string'||Buffer.byteLength(options.body)>1200000))throw Error('阅读请求过大');
  if(method==='POST')JSON.parse(options.body||'{}');return {method,body:method==='POST'?options.body||'{}':undefined};

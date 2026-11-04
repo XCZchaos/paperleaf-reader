@@ -7,19 +7,20 @@ import {homedir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {CodexRPC} from './rpc.mjs';
+import {setStage,readingProgress,publicProgress} from './progress.mjs';
 import {validateRequest,promptFor,instructions,slideSchema,validateDeck,metadataSchema,validateMetadata} from './research.mjs';
 
 export const SITE='https://paperleaf-xcz-reader.shamboo2003.chatgpt.site';
 export const PORT=17624;
 const active=j=>['preparing','running'].includes(j.status);
 const safeError=e=>String(e?.message||'Codex 请求失败').replace(/Bearer\s+\S+|sk-\S+/gi,'[已隐藏]').slice(0,500);
-const publicJob=j=>({id:j.id,kind:j.kind,status:j.status,text:j.text,error:j.error,deck:j.deck,metadata:j.metadata||null,model:j.model,pages:j.pages,created:j.created});
+const publicJob=j=>({id:j.id,kind:j.kind,status:j.status,text:j.text,error:j.error,deck:j.deck,metadata:j.metadata||null,model:j.model,effort:j.effort||null,pages:j.pages,created:j.created,...publicProgress(j)});
 
 export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64url'),origin=SITE,port=PORT}) {
-  const jobs=new Map(),cancelledIds=new Map(); let login=null,modelCache=[],modelTime=0,accountKey='',rates=null,rateTime=0;
+  const jobs=new Map(),cancelledIds=new Map(); let login=null,modelCache=[],modelTime=0,accountKey='',rates=null,rateTime=0,rateAttempt=0,rateWarning='',ratesById=null,quotaOwner='',ordinaryUsageAllowed=null;
   function finish(j,status,error='') {
     if(!active(j))return;
-    j.status=status;j.error=error;clearTimeout(j.timer);
+    j.status=status;j.error=error;j.completedAt=Date.now();setStage(j,status);clearTimeout(j.timer);
     if(j.threadId)rpc.request('thread/unsubscribe',{threadId:j.threadId}).catch(()=>{});
   }
   async function cancel(j) {
@@ -30,19 +31,21 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
   }
   rpc.on('notification',({method,params:p})=>{
     if(method==='account/login/completed')login={...login,done:true,success:!!p.success,error:p.success?'':'登录未完成，请重试'};
-    if(method==='account/updated'){modelTime=0;rateTime=0;}
-    if(method==='account/rateLimits/updated')rates=p.rateLimits;
+    if(method==='account/updated'){modelTime=0;rateTime=0;rateAttempt=0;rates=null;ratesById=null;ordinaryUsageAllowed=null;}
+    if(method==='account/rateLimits/updated'&&quotaOwner){const snapshot=p.rateLimits;if(snapshot){rates={...rates,...Object.fromEntries(Object.entries(snapshot).filter(([,v])=>v!=null))};if(snapshot.limitId)ratesById={...ratesById,[snapshot.limitId]:{...ratesById?.[snapshot.limitId],...snapshot}};rateTime=Date.now();}}
     for(const j of jobs.values()) {
       if(!active(j)||j.threadId!==p?.threadId)continue;
+      readingProgress(j,method,p);
       if(method==='turn/started')j.turnId=p.turn.id;
+      if(method==='item/started'&&p.item.type==='agentMessage')j.items.set(p.item.id,{text:'',phase:p.item.phase});
       if(method==='item/agentMessage/delta'){
         const old=j.items.get(p.itemId)||{text:'',phase:null};old.text+=p.delta;j.items.set(p.itemId,old);
-        j.text=old.text.slice(0,100000);
+        if(old.phase==='commentary')j.activity=old.text.slice(-600);else{j.text=old.text.slice(0,100000);setStage(j,'writing');}
         if(old.text.length>100000){void cancel(j);j.error='输出超过长度限制，请缩小阅读范围';}
       }
       if(method==='item/completed'&&p.item.type==='agentMessage'){
         j.items.set(p.item.id,{text:p.item.text,phase:p.item.phase});
-        if(p.item.phase==='final_answer'||p.item.phase==null)j.text=p.item.text;
+        if(p.item.phase==='commentary')j.activity=p.item.text.slice(-600);else{j.text=p.item.text.slice(0,100000);setStage(j,'writing');}
       }
       if(method==='item/started'&&!['userMessage','agentMessage','reasoning','plan','contextCompaction'].includes(p.item.type)){
         void cancel(j);j.error='阅读任务尝试调用工具，已停止。请重新提问并仅依据原文。';
@@ -54,6 +57,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         const messages=finals.length?finals:[...j.items.values()].filter(x=>x.phase!=='commentary');
         j.text=messages.map(x=>x.text).join('\n\n');
         if(!j.text.trim()){finish(j,'error','Codex 未返回完整正文，请重新尝试');continue;}
+        setStage(j,'finalizing');
         try{
           if(j.kind==='metadata')j.metadata=validateMetadata(JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'')));
           if(j.kind==='slides'){
@@ -69,13 +73,19 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
   });
   rpc.on('blocked',p=>{for(const j of jobs.values())if(active(j)&&j.threadId===p.params?.threadId){void cancel(j);j.error='阅读助手不执行本机工具操作，任务已停止';}});
   rpc.on('closed',message=>{for(const j of jobs.values())finish(j,'error',message)});
-  async function account(){const {account}=await rpc.request('account/read',{refreshToken:false});return account?.type==='chatgpt'?{email:account.email,plan:account.planType}:null;}
+  async function account(){const {account}=await rpc.request('account/read',{refreshToken:false});const a=account?.type==='chatgpt'?{email:account.email,plan:account.planType}:null;const key=a?`${a.email}|${a.plan}`:'';if(key!==quotaOwner){quotaOwner=key;rates=null;ratesById=null;rateTime=0;rateAttempt=0;rateWarning='';ordinaryUsageAllowed=null;}return a;}
+  async function readRates(force=false){
+    if(!force&&Date.now()-rateAttempt<60000)return;
+    rateAttempt=Date.now();const owner=quotaOwner;
+    try{const response=await rpc.request('account/rateLimits/read',{},6000);if(owner!==quotaOwner)return;rates=response.rateLimits||null;ratesById=response.rateLimitsByLimitId||null;ordinaryUsageAllowed=response.ordinaryUsageAllowed??null;rateTime=Date.now();rateWarning='';}
+    catch{if(owner===quotaOwner)rateWarning='额度刷新失败，请稍后重试。'+(rates?'下方保留上次数据。':'');}
+  }
   async function models(a){
     const key=a?.email+'|'+a?.plan;
     if(key!==accountKey||Date.now()-modelTime>60000){
       const list=[];let cursor;
       for(let i=0;i<10;i++){const r=await rpc.request('model/list',{limit:50,includeHidden:false,...(cursor?{cursor}:{})});list.push(...r.data);if(!r.nextCursor)break;cursor=r.nextCursor;}
-      modelCache=list.filter(m=>!m.hidden).map(m=>({id:m.model,name:m.displayName,default:!!m.isDefault}));modelTime=Date.now();accountKey=key;
+      modelCache=list.filter(m=>!m.hidden).map(m=>({id:m.model,name:m.displayName,default:!!m.isDefault,reasoningEfforts:(m.supportedReasoningEfforts||[]).filter(x=>typeof x.reasoningEffort==='string').slice(0,20).map(x=>({id:x.reasoningEffort,description:String(x.description||'').slice(0,500)})),defaultEffort:m.defaultReasoningEffort||''}));modelTime=Date.now();accountKey=key;
     }
     return modelCache;
   }
@@ -83,12 +93,15 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
     try{
       const a=await account();if(!a)throw Error('请先在连接面板登录 Codex / ChatGPT 账号');
       const list=await models(a);if(r.model&&!list.some(m=>m.id===r.model))throw Error('该模型不在当前账号的模型列表中，请重新选择');
+      const selected=r.model?list.find(m=>m.id===r.model):list.find(m=>m.default);
+      if(r.effort&&!selected?.reasoningEfforts.some(e=>e.id===r.effort))throw Error('当前模型不支持所选思考强度，请在 Codex 面板重新选择');
+      j.effort=r.effort||selected?.defaultEffort||null;
       if(j.cancelled)return;
       const t=await rpc.request('thread/start',{...(r.model?{model:r.model}:{}),cwd:workdir,approvalPolicy:'untrusted',permissions:'paperleaf_reading',ephemeral:true,baseInstructions:instructions,developerInstructions:instructions,serviceName:'paperleaf_reader'});
       j.threadId=t.thread.id;j.model=t.model||r.model||'Codex 默认模型';
       if(j.cancelled){await rpc.request('thread/unsubscribe',{threadId:j.threadId}).catch(()=>{});return;}
-      j.status='running';
-      const result=await rpc.request('turn/start',{threadId:j.threadId,input:[{type:'text',text:promptFor(r),text_elements:[]}],approvalPolicy:'untrusted',...(r.kind==='slides'?{outputSchema:slideSchema(r.slideCount)}:r.kind==='metadata'?{outputSchema:metadataSchema}:{})},60000);
+      j.status='running';setStage(j,'thinking');
+      const result=await rpc.request('turn/start',{threadId:j.threadId,summary:'concise',...(r.effort?{effort:r.effort}:{}),input:[{type:'text',text:promptFor(r),text_elements:[]}],approvalPolicy:'untrusted',...(r.kind==='slides'?{outputSchema:slideSchema(r.slideCount)}:r.kind==='metadata'?{outputSchema:metadataSchema}:{})},60000);
       j.turnId=result.turn.id;
       if(j.cancelled)await rpc.request('turn/interrupt',{threadId:j.threadId,turnId:j.turnId}).catch(()=>{});
     }catch(e){finish(j,'error',safeError(e));}
@@ -113,8 +126,8 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
       if(req.method==='GET'&&u.pathname==='/status'){
         const a=await account();let m=[],warning='';
         if(a){try{m=await models(a)}catch{warning='模型列表暂时不可用，可以使用 Codex 默认模型'}
-          if(Date.now()-rateTime>60000){rateTime=Date.now();try{rates=(await rpc.request('account/rateLimits/read',{},6000)).rateLimits}catch{rates=null;}}}
-        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,version:'1.2.0'});return;
+          await readRates(u.searchParams.get('refresh')==='1');}
+        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,rateLimitsByLimitId:a?ratesById:null,rateLimitsUpdatedAt:a?rateTime:null,rateLimitsWarning:a?rateWarning:'',ordinaryUsageAllowed:a?ordinaryUsageAllowed:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,version:'1.3.0'});return;
       }
       if(req.method==='POST'&&u.pathname==='/login'){
         if([...jobs.values()].some(active)){send(res,409,{error:'请先停止当前生成任务，再登录其他账号'});return;}
@@ -139,7 +152,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         if(!await account()){send(res,401,{error:'请先登录 Codex / ChatGPT 账号'});return;}
         if(cancelledIds.has(r.id)){send(res,200,{id:r.id,status:'cancelled',text:'',error:'已停止生成'});return;}
         for(const [id,j] of jobs)if(!active(j)&&(Date.now()-j.created>1800000||jobs.size>=30))jobs.delete(id);
-        const j={id:r.id,kind:r.kind,status:'preparing',text:'',error:'',deck:null,model:r.model||'',pages:r.pages.map(p=>p.page),created:Date.now(),items:new Map(),hash,slideCount:r.slideCount};
+        const j={id:r.id,kind:r.kind,status:'preparing',text:'',error:'',deck:null,model:r.model||'',pages:r.pages.map(p=>p.page),created:Date.now(),updated:Date.now(),stage:'preparing',summaries:new Map(),activity:'',items:new Map(),hash,slideCount:r.slideCount};
         j.timer=setTimeout(()=>{void cancel(j);j.error='生成超过 5 分钟已停止，请缩小范围或更换模型';},300000);
         jobs.set(j.id,j);send(res,202,publicJob(j));void run(j,r);return;
       }
