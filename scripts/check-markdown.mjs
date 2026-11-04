@@ -6,6 +6,8 @@ try{
  const render=text=>renderToStaticMarkup(React.createElement(Markdown,{text,pages:[1],onPage:()=>{}}));
  const rendered=render('### 核心结论\n\n**重点说明。 **\n\n1. 方法一\n2. 方法二\n\n| 指标 | 结果 |\n| --- | --- |\n| 准确率 | 90% |\n\n\\(x^2\\) [p.1] [p.99]');
  assert(rendered.includes('<h3>核心结论</h3>'));assert(rendered.includes('<strong>重点说明。</strong>'));assert(rendered.includes('<ol>'));assert(rendered.includes('<table>'));assert(rendered.includes('class="katex"'));assert(rendered.includes('跳转至第 1 页'));assert(!rendered.includes('跳转至第 99 页'));
+ const chinese=render('1. **性能匹配： **结构经均匀化计算后的弹性张量接近目标；\n2. **几何有效：**具有连通性、立方对称性与可靠的边界；\n3. 结构**（有效性）**得到验证。');assert(chinese.includes('<strong>性能匹配：</strong>结构'));assert(chinese.includes('<strong>几何有效：</strong>具有'));assert(chinese.includes('<strong>（有效性）</strong>'));assert(!chinese.includes('**'));
+ assert(!render('`**性能匹配： **`').includes('<strong>'));
  const fenced='```md\n** raw ** [p.1] \\(x\\)\n```';assert.equal(readableMarkdown(fenced),fenced);assert(!render(fenced).includes('citation-pill'));
  const hostile=render('<script>alert(1)</script>\n\n<a href="javascript:alert(1)">bad</a>\n\n[bad](javascript:alert%281%29) ![tracking](https://evil.invalid/pixel) [source](https://example.org)');
  assert(!hostile.includes('<script'));assert(!hostile.includes('javascript:'));assert(!hostile.includes('<img'));assert(hostile.includes('noopener noreferrer'));

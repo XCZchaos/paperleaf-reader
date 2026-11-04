@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import {EventEmitter} from 'node:events';
 import {createBridge,SITE} from '../companion/server.mjs';
-import {validateRequest,validateDeck,validateMetadata,paperFilename} from '../companion/research.mjs';
+import {validateRequest,validateDeck,validateMetadata,paperFilename,wordCandidate,validateVocabulary} from '../companion/research.mjs';
 class FakeRPC extends EventEmitter {
  constructor(){super();this.calls=[];this.loggedIn=false;this.seq=0;}
  async request(method,params){this.calls.push({method,params});
@@ -12,7 +12,7 @@ class FakeRPC extends EventEmitter {
   if(method==='account/login/start')return{type:'chatgpt',loginId:'fixture-login',authUrl:'https://auth.openai.com/fixture'};
   if(method==='account/logout'){this.loggedIn=false;return{}};
   if(method==='thread/start'){assert.equal(params.permissions,'paperleaf_reading');assert(!('sandbox' in params));return{thread:{id:'thread-'+(++this.seq)},model:'fixture-model'};}
-  if(method==='turn/start'){assert.equal(params.summary,'concise');assert.equal(params.effort,'high');assert(!('sandboxPolicy' in params));return{turn:{id:'turn-'+this.seq,status:'inProgress'}};}
+  if(method==='turn/start'){assert.equal(params.summary,'auto');assert.equal(params.effort,'high');assert(!('sandboxPolicy' in params));return{turn:{id:'turn-'+this.seq,status:'inProgress'}};}
   return{};
  }
  close(){}
@@ -47,11 +47,12 @@ try{
  event('item/completed',{item:{id:'r1',type:'reasoning',summary:['完成的公开摘要'],content:['RAW_REASONING_MUST_NOT_APPEAR']}});
  event('item/started',{item:{id:'comment',type:'agentMessage',phase:'commentary'}});event('item/agentMessage/delta',{itemId:'comment',delta:'正在整理文献'});
  status=await json('/jobs/'+job.id);assert.equal(status.text,'');assert.equal(status.activity,'正在整理文献');assert.equal(status.reasoningSummary,'完成的公开摘要');assert(!JSON.stringify(status).includes('RAW_REASONING'));
+ event('error',{willRetry:true,error:{message:'retry fixture'}});event('turn/plan/updated',{plan:[{step:'核对研究问题',status:'inProgress'}]});
  rpc.emit('notification',{method:'item/agentMessage/delta',params:{threadId:job.threadId,turnId:job.turnId,itemId:'answer',delta:'Fixture answer'}});
  assert.equal((await json('/jobs/'+job.id)).text,'Fixture answer');
  rpc.emit('notification',{method:'item/completed',params:{threadId:job.threadId,item:{id:'answer',type:'agentMessage',phase:'final_answer',text:'Verified fixture [p.1]'}}});
  rpc.emit('notification',{method:'turn/completed',params:{threadId:job.threadId,turn:{status:'completed'}}});
- const finished=await json('/jobs/'+job.id);assert.equal(finished.status,'completed');assert.equal(finished.stage,'completed');assert(finished.completedAt>=finished.created);assert(!finished.text.includes('正在整理文献'));
+ const finished=await json('/jobs/'+job.id);assert.equal(finished.status,'completed');assert.equal(finished.stage,'completed');assert(finished.completedAt>=finished.created);assert(!finished.text.includes('正在整理文献'));assert(finished.events.some(e=>e.kind==='commentary'&&e.text==='正在整理文献'));assert(finished.events.some(e=>e.kind==='retry'));assert(finished.events.some(e=>e.kind==='plan'&&e.text.includes('核对研究问题')));assert(!JSON.stringify(finished).includes('RAW_REASONING'));
  const unsupported={...payload,id:crypto.randomUUID(),effort:'not-supported'};const priorTurns=rpc.calls.filter(x=>x.method==='turn/start').length;await json('/jobs',{method:'POST',body:unsupported},202);await tick();assert.equal((await json('/jobs/'+unsupported.id)).status,'error');assert.equal(rpc.calls.filter(x=>x.method==='turn/start').length,priorTurns);
  const second={...payload,id:crypto.randomUUID()};await json('/jobs',{method:'POST',body:second},202);await tick();
  await json('/jobs/'+second.id+'/cancel',{method:'POST',body:{}});assert.equal(b.jobs.get(second.id).status,'cancelled');assert(rpc.calls.some(x=>x.method==='turn/interrupt'));
@@ -69,6 +70,7 @@ try{
  assert.equal(paperFilename(metadata),'2026 - Alice Example - A Test_ Reading _ Papers_.pdf');
  assert.equal(validateMetadata({...metadata,year:'',doi:''}).year,'');
  assert.throws(()=>validateMetadata({...metadata,year:'unknown'}));assert.throws(()=>validateMetadata({...metadata,doi:'fabricated'}));
+ const wordPayload={...payload,id:crypto.randomUUID(),kind:'translate',selection:'regularization',detectVocabulary:true};await json('/jobs',{method:'POST',body:wordPayload},202);await tick();const wordJob=b.jobs.get(wordPayload.id);const wordInfo={word:'regularization',phonetic:'',partOfSpeech:'n.',meaning:'正则化',contextMeaning:'降低过拟合',examples:[{en:'Regularization reduces overfitting.',zh:'正则化降低过拟合。'}],relatedWords:['regularize']};assert(rpc.calls.filter(x=>x.method==='turn/start').at(-1).params.outputSchema.properties.vocabulary);rpc.emit('notification',{method:'item/agentMessage/delta',params:{threadId:wordJob.threadId,itemId:'word-answer',delta:'{"text":'}});assert.equal((await json('/jobs/'+wordJob.id)).text,'');rpc.emit('notification',{method:'item/completed',params:{threadId:wordJob.threadId,item:{id:'word-answer',type:'agentMessage',phase:'final_answer',text:JSON.stringify({text:'**正则化**',vocabulary:wordInfo})}}});rpc.emit('notification',{method:'turn/completed',params:{threadId:wordJob.threadId,turn:{status:'completed'}}});const learned=await json('/jobs/'+wordJob.id);assert.equal(learned.text,'**正则化**');assert.equal(learned.vocabulary.word,'regularization');assert.equal(wordCandidate('two words'),'');assert.equal(wordCandidate('accuracy.'),'accuracy');assert.throws(()=>validateVocabulary({...wordInfo,word:'other'},'regularization'));
  await json('/logout',{method:'POST',body:{}});const loggedOut=await json('/status');assert.equal(loggedOut.account,null);assert.equal(loggedOut.rateLimits,null);assert.equal(loggedOut.rateLimitsByLimitId,null);
  console.log('PASS: forced quota refresh/cache/failure/logout isolation, reasoning summaries, exclusion of raw reasoning, commentary separation and real event stages.');
  console.log('PASS: companion origin/host/token checks, Unicode token safety, login gate, official auth URL, model catalog, idempotent tasks, stream completion, cancellation (including pre-create race), errors, bounded context, citations, structured metadata and filename sanitization. Model responses were explicit fixtures.');

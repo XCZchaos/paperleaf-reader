@@ -42,6 +42,8 @@ node scripts/check-companion.mjs
 node scripts/check-codex-protocol.mjs
 node scripts/check-pptx.mjs
 node scripts/check-updater.mjs
+node scripts/check-markdown.mjs
+node scripts/check-reading.mjs
 node scripts/build-desktop.mjs
 node scripts/build-installer.mjs
 node scripts/check-desktop.mjs
@@ -77,3 +79,19 @@ Codex displays actual task stages, elapsed time, output length and public reason
 Validation on 2026-11-04: production bridge requests completed real translation, Q&A, metadata, summary and six-slide report tasks using gpt-6.1-sol, plus a separate real high-effort Q&A. Offline protocol fixtures verify effort forwarding/rejection, public summary isolation, usage caching/refresh/error/logout and desktop IPC. Markdown rendering/safety checks and account/API tests pass. Browser fixtures verify formatting, quota refresh, effort selection and persistent panel resizing. The real usage endpoint rejected this build environment's token with HTTP 401, so actual remaining quota was not verified; live tasks returned no public reasoning summaries. Interactive Windows OAuth remains outside CI.
 
 The website and GitHub source are public. Website editing remains owner-only; documents and records require login and retain account isolation. See the release notes for the unsigned Windows EXE and release-specific installation checks.
+
+## Version 1.4.0
+
+The interface now uses shadcn/ui components for buttons, form controls, cards, tabs, toggles, progress and accessible dialogs. The library, reader tools, vocabulary and account screens share a restrained forest-green design with light/dark themes. Dialog focus restoration and keyboard tab navigation are verified without interfering with PDF pagination or its selectable text layer.
+
+Persistent conversations support follow-up questions, independent histories, reopening, source quotations, cloud-save retries without another model call, and a bounded recent context window. The progress view shows actual public commentary, plan changes and retry events received from Codex. Public reasoning summaries are displayed only when provided; private reasoning is never collected. Chinese punctuation next to Markdown emphasis now renders correctly. The PDF import modal keeps a fixed frame while filenames and progress change.
+
+Full-paper translation extracts text by page, groups paragraphs from PDF layout, and saves each English/Chinese pair independently. It supports pause-after-current, resume, failed-paragraph retry, source-page navigation, bilingual notes and complete export. Cloud leases prevent two devices from translating the same queued paragraph concurrently. Scanned pages need OCR and complex columns may require checking the extracted order.
+
+Model suggestions are filtered to models and reasoning levels actually advertised by the signed-in account. Translation favors available light models with lower supported effort; metadata, Q&A, summaries and slides have separate suggestions and device-local preferences. These are starting points, not latency guarantees.
+
+When a selected English word is translated, GPT can return its meaning, part of speech, phonetics when known, contextual meaning, self-written examples and related words. Optional automatic collection saves the word with the full answer and source page to an owner-scoped cloud vocabulary book. The book supports search, learned/review states, source navigation and export. Repeated words merge while preserving mastery and recent sources. Word detection is decided by GPT, with validated structured output; full paragraphs are not collected.
+
+Versioned external Paperleaf icons are explicitly assigned to Windows desktop/start-menu shortcuts and uninstall registration. Packaging checks compare all embedded EXE icon sizes and the external icon with the brand source.
+
+Validation on 2026-11-04: real gpt-6.1-sol requests passed two-turn contextual Q&A, paragraph translation, metadata, summary and slide generation. Real gpt-6-luna with low effort identified a single word and rejected a multi-word phrase for vocabulary collection. These calls returned no public reasoning summary. Offline API tests cover tenant isolation, conversation parents, paragraph leases, retry idempotence and vocabulary deduplication; marked browser fixtures cover UI interactions. Interactive Windows OAuth and user-specific network conditions remain outside these checks. See the GitHub release for released-installer Windows CI.

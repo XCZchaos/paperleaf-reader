@@ -7,7 +7,7 @@ on:
       tag:
         description: Existing release tag to test
         required: true
-        default: v1.3.0
+        default: v1.4.0
 permissions:
   contents: read
 jobs:
@@ -40,6 +40,19 @@ jobs:
           if ($installedVersion -ne $release.version) { throw 'Installed version mismatch' }
           if (!(Test-Path "$install\Paperleaf.exe")) { throw 'Desktop executable missing' }
           if (!(Test-Path "$install\Uninstall Paperleaf.exe")) { throw 'Uninstaller missing' }
+          $brandIcon = "$install\paperleaf-$($release.version).ico"
+          if (!(Test-Path $brandIcon)) { throw 'Versioned application icon missing' }
+          if ((Get-FileHash $brandIcon).Hash -ne (Get-FileHash desktop/assets/paperleaf.ico).Hash) { throw 'Installed brand icon mismatch' }
+          $shell = New-Object -ComObject WScript.Shell
+          $desktopLink = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Paperleaf.lnk'
+          $startLink = Join-Path ([Environment]::GetFolderPath('Programs')) 'Paperleaf\Paperleaf.lnk'
+          foreach ($link in @($desktopLink, $startLink)) {
+            if (!(Test-Path $link)) { throw "Missing shortcut: $link" }
+            $shortcut = $shell.CreateShortcut($link)
+            if ($shortcut.TargetPath -ne "$install\Paperleaf.exe") { throw 'Shortcut target mismatch' }
+            if ($shortcut.IconLocation -ne "$brandIcon,0") { throw "Shortcut still uses an unexpected icon: $($shortcut.IconLocation)" }
+          }
+          Write-Output 'PASS: desktop and Start Menu shortcuts use the verified Paperleaf brand icon.'
           "PAPERLEAF_TEST_CODEX_BINARY=$install\resources\codex\bin\codex.exe" >> $env:GITHUB_ENV
           "PAPERLEAF_TEST_DESKTOP=$install\Paperleaf.exe" >> $env:GITHUB_ENV
           Write-Output "PASS: released EXE installed successfully, version $installedVersion."

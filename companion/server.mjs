@@ -7,14 +7,14 @@ import {homedir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {CodexRPC} from './rpc.mjs';
-import {setStage,readingProgress,publicProgress} from './progress.mjs';
-import {validateRequest,promptFor,instructions,slideSchema,validateDeck,metadataSchema,validateMetadata} from './research.mjs';
+import {setStage,readingProgress,publicProgress,progressEvent} from './progress.mjs';
+import {validateRequest,promptFor,instructions,slideSchema,validateDeck,metadataSchema,validateMetadata,wordTranslationSchema,validateWordTranslation} from './research.mjs';
 
 export const SITE='https://paperleaf-xcz-reader.shamboo2003.chatgpt.site';
 export const PORT=17624;
 const active=j=>['preparing','running'].includes(j.status);
 const safeError=e=>String(e?.message||'Codex 请求失败').replace(/Bearer\s+\S+|sk-\S+/gi,'[已隐藏]').slice(0,500);
-const publicJob=j=>({id:j.id,kind:j.kind,status:j.status,text:j.text,error:j.error,deck:j.deck,metadata:j.metadata||null,model:j.model,effort:j.effort||null,pages:j.pages,created:j.created,...publicProgress(j)});
+const publicJob=j=>({id:j.id,kind:j.kind,status:j.status,text:j.detectVocabulary&&j.status!=='completed'?'':j.text,vocabulary:j.vocabulary||null,error:j.error,deck:j.deck,metadata:j.metadata||null,model:j.model,effort:j.effort||null,pages:j.pages,created:j.created,...publicProgress(j)});
 
 export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64url'),origin=SITE,port=PORT}) {
   const jobs=new Map(),cancelledIds=new Map(); let login=null,modelCache=[],modelTime=0,accountKey='',rates=null,rateTime=0,rateAttempt=0,rateWarning='',ratesById=null,quotaOwner='',ordinaryUsageAllowed=null;
@@ -40,15 +40,15 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
       if(method==='item/started'&&p.item.type==='agentMessage')j.items.set(p.item.id,{text:'',phase:p.item.phase});
       if(method==='item/agentMessage/delta'){
         const old=j.items.get(p.itemId)||{text:'',phase:null};old.text+=p.delta;j.items.set(p.itemId,old);
-        if(old.phase==='commentary')j.activity=old.text.slice(-600);else{j.text=old.text.slice(0,100000);setStage(j,'writing');}
+        if(old.phase==='commentary'){j.activity=old.text.slice(-600);progressEvent(j,'commentary-'+p.itemId,'commentary','阅读进展',old.text,false);}else{j.text=old.text.slice(0,100000);setStage(j,'writing');}
         if(old.text.length>100000){void cancel(j);j.error='输出超过长度限制，请缩小阅读范围';}
       }
       if(method==='item/completed'&&p.item.type==='agentMessage'){
         j.items.set(p.item.id,{text:p.item.text,phase:p.item.phase});
-        if(p.item.phase==='commentary')j.activity=p.item.text.slice(-600);else{j.text=p.item.text.slice(0,100000);setStage(j,'writing');}
+        if(p.item.phase==='commentary'){j.activity=p.item.text.slice(-600);progressEvent(j,'commentary-'+p.item.id,'commentary','阅读进展',p.item.text,true);}else{j.text=p.item.text.slice(0,100000);setStage(j,'writing');}
       }
       if(method==='item/started'&&!['userMessage','agentMessage','reasoning','plan','contextCompaction'].includes(p.item.type)){
-        void cancel(j);j.error='阅读任务尝试调用工具，已停止。请重新提问并仅依据原文。';
+        progressEvent(j,'tool-blocked','stage','工具请求已阻止','文献阅读仅处理你提供的文字。');void cancel(j);j.error='阅读任务尝试调用工具，已停止。请重新提问并仅依据原文。';
       }
       if(method==='turn/completed'){
         if(j.cancelled){finish(j,'cancelled','已停止生成');continue;}
@@ -59,6 +59,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         if(!j.text.trim()){finish(j,'error','Codex 未返回完整正文，请重新尝试');continue;}
         setStage(j,'finalizing');
         try{
+          if(j.detectVocabulary){const parsed=validateWordTranslation(JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'')),j.selection);j.text=parsed.text;j.vocabulary=parsed.vocabulary;}
           if(j.kind==='metadata')j.metadata=validateMetadata(JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'')));
           if(j.kind==='slides'){
             const raw=j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'');
@@ -100,8 +101,8 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
       const t=await rpc.request('thread/start',{...(r.model?{model:r.model}:{}),cwd:workdir,approvalPolicy:'untrusted',permissions:'paperleaf_reading',ephemeral:true,baseInstructions:instructions,developerInstructions:instructions,serviceName:'paperleaf_reader'});
       j.threadId=t.thread.id;j.model=t.model||r.model||'Codex 默认模型';
       if(j.cancelled){await rpc.request('thread/unsubscribe',{threadId:j.threadId}).catch(()=>{});return;}
-      j.status='running';setStage(j,'thinking');
-      const result=await rpc.request('turn/start',{threadId:j.threadId,summary:'concise',...(r.effort?{effort:r.effort}:{}),input:[{type:'text',text:promptFor(r),text_elements:[]}],approvalPolicy:'untrusted',...(r.kind==='slides'?{outputSchema:slideSchema(r.slideCount)}:r.kind==='metadata'?{outputSchema:metadataSchema}:{})},60000);
+      j.status='running';progressEvent(j,'connected','stage','已连接 Codex',j.model);setStage(j,'thinking');
+      const result=await rpc.request('turn/start',{threadId:j.threadId,summary:'auto',...(r.effort?{effort:r.effort}:{}),input:[{type:'text',text:promptFor(r),text_elements:[]}],approvalPolicy:'untrusted',...(r.kind==='slides'?{outputSchema:slideSchema(r.slideCount)}:r.kind==='metadata'?{outputSchema:metadataSchema}:r.detectVocabulary?{outputSchema:wordTranslationSchema}:{})},60000);
       j.turnId=result.turn.id;
       if(j.cancelled)await rpc.request('turn/interrupt',{threadId:j.threadId,turnId:j.turnId}).catch(()=>{});
     }catch(e){finish(j,'error',safeError(e));}
@@ -127,7 +128,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         const a=await account();let m=[],warning='';
         if(a){try{m=await models(a)}catch{warning='模型列表暂时不可用，可以使用 Codex 默认模型'}
           await readRates(u.searchParams.get('refresh')==='1');}
-        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,rateLimitsByLimitId:a?ratesById:null,rateLimitsUpdatedAt:a?rateTime:null,rateLimitsWarning:a?rateWarning:'',ordinaryUsageAllowed:a?ordinaryUsageAllowed:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,version:'1.3.0'});return;
+        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,rateLimitsByLimitId:a?ratesById:null,rateLimitsUpdatedAt:a?rateTime:null,rateLimitsWarning:a?rateWarning:'',ordinaryUsageAllowed:a?ordinaryUsageAllowed:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,version:'1.4.0'});return;
       }
       if(req.method==='POST'&&u.pathname==='/login'){
         if([...jobs.values()].some(active)){send(res,409,{error:'请先停止当前生成任务，再登录其他账号'});return;}
@@ -152,9 +153,9 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         if(!await account()){send(res,401,{error:'请先登录 Codex / ChatGPT 账号'});return;}
         if(cancelledIds.has(r.id)){send(res,200,{id:r.id,status:'cancelled',text:'',error:'已停止生成'});return;}
         for(const [id,j] of jobs)if(!active(j)&&(Date.now()-j.created>1800000||jobs.size>=30))jobs.delete(id);
-        const j={id:r.id,kind:r.kind,status:'preparing',text:'',error:'',deck:null,model:r.model||'',pages:r.pages.map(p=>p.page),created:Date.now(),updated:Date.now(),stage:'preparing',summaries:new Map(),activity:'',items:new Map(),hash,slideCount:r.slideCount};
+        const j={detectVocabulary:r.detectVocabulary,selection:r.selection,id:r.id,kind:r.kind,status:'preparing',text:'',error:'',deck:null,model:r.model||'',pages:r.pages.map(p=>p.page),created:Date.now(),updated:Date.now(),stage:'preparing',summaries:new Map(),events:[],activity:'',items:new Map(),hash,slideCount:r.slideCount};
         j.timer=setTimeout(()=>{void cancel(j);j.error='生成超过 5 分钟已停止，请缩小范围或更换模型';},300000);
-        jobs.set(j.id,j);send(res,202,publicJob(j));void run(j,r);return;
+        progressEvent(j,'source','stage','已读取文献',`${r.pages.length} 页 · ${r.pages.reduce((n,p)=>n+p.text.length,0).toLocaleString()} 字符`);jobs.set(j.id,j);send(res,202,publicJob(j));void run(j,r);return;
       }
       const match=u.pathname.match(/^\/jobs\/([a-zA-Z0-9-]{16,64})(\/cancel)?$/);
       if(match){const j=jobs.get(match[1]);if(!j&&req.method==='POST'&&match[2]){for(const [id,t] of cancelledIds)if(Date.now()-t>300000||cancelledIds.size>100)cancelledIds.delete(id);cancelledIds.set(match[1],Date.now());send(res,200,{id:match[1],status:'cancelled',text:'',error:'已停止生成'});return;}if(!j){send(res,404,{error:'任务已过期或连接程序已重启，请重新生成'});return;}

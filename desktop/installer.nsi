@@ -49,19 +49,20 @@ Section "Paperleaf" SEC_MAIN
   SetOutPath "$INSTDIR"
   File /r "${PROJECT_DIR}/work/desktop/release/Paperleaf-win32-x64/*.*"
   WriteUninstaller "$INSTDIR\Uninstall Paperleaf.exe"
-  CreateShortcut "$DESKTOP\Paperleaf.lnk" "$INSTDIR\Paperleaf.exe"
+  CreateShortcut "$DESKTOP\Paperleaf.lnk" "$INSTDIR\Paperleaf.exe" "" "$INSTDIR\paperleaf-${VERSION}.ico" 0
   CreateDirectory "$SMPROGRAMS\Paperleaf"
-  CreateShortcut "$SMPROGRAMS\Paperleaf\Paperleaf.lnk" "$INSTDIR\Paperleaf.exe"
+  CreateShortcut "$SMPROGRAMS\Paperleaf\Paperleaf.lnk" "$INSTDIR\Paperleaf.exe" "" "$INSTDIR\paperleaf-${VERSION}.ico" 0
   CreateShortcut "$SMPROGRAMS\Paperleaf\卸载 Paperleaf.lnk" "$INSTDIR\Uninstall Paperleaf.exe"
   WriteRegStr HKCU "Software\Paperleaf" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf" "DisplayName" "Paperleaf"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf" "Publisher" "Paperleaf"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf" "DisplayIcon" "$INSTDIR\Paperleaf.exe"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf" "DisplayIcon" "$INSTDIR\paperleaf-${VERSION}.ico"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf" "UninstallString" '"$INSTDIR\Uninstall Paperleaf.exe"'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf" "NoRepair" 1
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
 
 Section "Uninstall"

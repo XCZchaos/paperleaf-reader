@@ -20,7 +20,7 @@ async function moduleFor(file){if(cache.has(file))return cache.get(file);let mod
  cache.set(file,mod);await mod.link(async(spec,ref)=>{if(spec==='cloudflare:workers'||spec.startsWith('next/'))return moduleFor(spec);const full=spec.startsWith('@/')?path.join(root,spec.slice(2)):path.resolve(path.dirname(ref.identifier),spec);return moduleFor(path.extname(full)?full:full+'.ts')});await mod.evaluate();return mod;
 }
 const jars=new Map();
-const routes={};for(const [name,file] of Object.entries({account:'app/api/account/route.ts',reading:'app/api/reading-state/route.ts',papers:'app/api/papers/route.ts',paper:'app/api/papers/[id]/route.ts',file:'app/api/papers/[id]/file/route.ts',notes:'app/api/notes/route.ts',collections:'app/api/collections/route.ts',research:'app/api/research/route.ts',translate:'app/api/translate/route.ts'}))routes[name]=(await moduleFor(path.join(root,file))).namespace;
+const routes={};for(const [name,file] of Object.entries({account:'app/api/account/route.ts',reading:'app/api/reading-state/route.ts',papers:'app/api/papers/route.ts',paper:'app/api/papers/[id]/route.ts',file:'app/api/papers/[id]/file/route.ts',notes:'app/api/notes/route.ts',collections:'app/api/collections/route.ts',research:'app/api/research/route.ts',translate:'app/api/translate/route.ts',full:'app/api/full-translation/route.ts',vocabulary:'app/api/vocabulary/route.ts'}))routes[name]=(await moduleFor(path.join(root,file))).namespace;
 async function call(route,method='GET',{owner='test-owner',device='browser',body,id,query='',origin,cookie}={}){const headers={};if(owner){headers['oai-authenticated-user-id']=owner;headers['oai-authenticated-user-email']=owner+'@test.invalid'}if(origin)headers.origin=origin;const key=owner+':'+device;const stored=cookie??jars.get(key);if(stored)headers.cookie=stored;const request=new Request('https://test.local/api/'+route+query,{method,headers,body:body instanceof FormData?body:body?JSON.stringify(body):undefined});const response=await session.run(request,()=>routes[route][method](request,{params:Promise.resolve({id})}));const updated=response.headers.get('set-cookie');if(updated)jars.set(key,updated.split(';')[0]);return response;}
 async function data(response,status=200){assert.equal(response.status,status,await response.clone().text());return response.json();}
 await data(await call('papers','GET',{owner:null}),401);
@@ -97,11 +97,59 @@ const translated={...researchInput,id:translation.researchId,kind:'translate',qu
 await data(await call('research','POST',{body:translated}));await data(await call('research','POST',{body:translated}));
 const translations=await data(await call('research','GET',{device:'desktop',query:'?paper='+p.id+'&kind=translate'}));assert.equal(translations.length,1);assert.equal(translations[0].question.length,8000);
 assert.equal((await data(await call('research','GET',{query:'?paper='+p.id}))).length,2);
+// Conversations preserve owner/paper isolation, parentage, full history and stable paging.
+const follow={...researchInput,id:crypto.randomUUID(),conversationId:research.id,parentId:research.id,question:'Follow-up',selection:'Selected evidence',effort:'high',process:{created:1,completedAt:10,events:[{id:'public',kind:'commentary',title:'Reading',text:'Public update',at:2,done:true},{kind:'raw-reasoning',text:'MUST_NOT_BE_STORED'}]}};
+const followSaved=await data(await call('research','POST',{body:follow}));assert.equal(followSaved.conversationId,research.id);assert.equal(followSaved.process.events.length,1);assert.equal(followSaved.selection,'Selected evidence');
+assert.equal((await data(await call('research','GET',{device:'desktop',query:'?paper='+p.id+'&conversation='+research.id}))).length,2);
+await data(await call('research','POST',{body:{...follow,id:crypto.randomUUID(),conversationId:crypto.randomUUID()}}),400);
+await data(await call('research','POST',{owner:'another-owner',body:{...follow,id:crypto.randomUUID()}}),404);
+const conversationRows=await data(await call('research','GET',{query:'?paper='+p.id+'&conversation='+research.id}));const newest=conversationRows[0];const older=await data(await call('research','GET',{query:`?paper=${p.id}&conversation=${research.id}&before=${newest.created}&beforeId=${newest.id}`}));assert.equal(older.length,1);assert.equal(older[0].id,research.id);
+// Full translations: prepare exactly once, exclusive claims, lease recovery and owner checks.
+await data(await call('full','GET',{owner:null,query:'?paper='+p.id}),401);
+await data(await call('full','GET',{owner:'another-owner',query:'?paper='+p.id}),404);
+const prepare={action:'prepare',paperId:p.id,page:1,paragraphs:['First paragraph.','Second paragraph.']};
+await data(await call('full','POST',{body:prepare}));await data(await call('full','POST',{body:prepare}));
+await data(await call('full','POST',{body:{...prepare,page:4}}),400);
+await data(await call('full','POST',{body:{...prepare,page:2,paragraphs:['x'.repeat(6001)]}}),400);
+await data(await call('full','POST',{body:{...prepare,page:2,paragraphs:[]}}));
+let full=await data(await call('full','GET',{query:'?paper='+p.id}));assert.equal(full.stats.total,2);assert.equal(full.stats.skipped,1);assert.deepEqual(full.preparedPages,[1,2]);assert(!JSON.stringify(full).includes('lease_token'));
+const claim=await data(await call('full','POST',{body:{action:'claim',paperId:p.id}}));
+const claim2=await data(await call('full','POST',{device:'desktop',body:{action:'claim',paperId:p.id}}));assert.notEqual(claim.entry.id,claim2.entry.id);
+assert.equal(await data(await call('full','POST',{body:{action:'claim',paperId:p.id}})),null);
+const complete={action:'complete',paperId:p.id,id:claim.entry.id,lease:claim.lease,text:'第一段中文。',model:'fixture'};
+await data(await call('full','PATCH',{owner:'another-owner',body:complete}),404);
+await data(await call('full','PATCH',{body:{...complete,lease:'wrong'}}),400);
+await data(await call('full','PATCH',{body:complete}));await data(await call('full','PATCH',{body:complete}));
+await data(await call('full','PATCH',{body:{action:'fail',paperId:p.id,id:claim2.entry.id,lease:claim2.lease,error:'fixture disconnected'}}));
+await data(await call('full','PATCH',{body:{action:'retry',paperId:p.id}}));
+const retry=await data(await call('full','POST',{body:{action:'claim',paperId:p.id}}));assert.equal(retry.entry.id,claim2.entry.id);
+sql.prepare('UPDATE translation_paragraphs SET lease_until=0 WHERE id=?').run(retry.entry.id);
+const reclaimed=await data(await call('full','POST',{device:'desktop',body:{action:'claim',paperId:p.id}}));assert.equal(reclaimed.entry.id,retry.entry.id);assert.notEqual(reclaimed.lease,retry.lease);
+await data(await call('full','PATCH',{body:{...complete,id:retry.entry.id,lease:retry.lease}}),400);
+await data(await call('full','PATCH',{body:{action:'release',paperId:p.id,id:reclaimed.entry.id,lease:reclaimed.lease}}));
+full=await data(await call('full','GET',{device:'desktop',query:'?paper='+p.id}));assert.equal(full.stats.done,1);assert.equal(full.stats.queued,1);assert.equal(full.entries[0].text,'第一段中文。');
+console.log('PASS: conversational history/parent validation/paging, public event storage, paragraph idempotency, exclusive multi-device claims, stale lease rejection/recovery, pause/resume, retry and tenant isolation.');
+// Words merge repeated encounters while preserving mastery and tenant isolation.
+const wordInfo={word:'accuracy',phonetic:'/ˈækjərəsi/',partOfSpeech:'n.',meaning:'准确性；准确率',contextMeaning:'在分类任务中预测正确的比例',examples:[{en:'Accuracy improved.',zh:'准确率提升了。'}],relatedWords:['accurate']};
+const wordInput={paperId:p.id,page:2,jobId:crypto.randomUUID(),original:'accuracy',text:'## accuracy\n准确率',vocabulary:wordInfo};
+await data(await call('vocabulary','GET',{owner:null}),401);
+const word=await data(await call('vocabulary','POST',{body:wordInput}));assert.equal(word.encounters,1);
+const again=await data(await call('vocabulary','POST',{body:wordInput}));assert.equal(again.id,word.id);assert.equal(again.encounters,1);
+await data(await call('vocabulary','PATCH',{body:{id:word.id,mastered:true}}));
+const encountered=await data(await call('vocabulary','POST',{device:'desktop',body:{...wordInput,jobId:crypto.randomUUID(),original:'Accuracy',vocabulary:{...wordInfo,word:'Accuracy'}}}));assert.equal(encountered.id,word.id);assert.equal(encountered.encounters,2);assert.equal(encountered.sources.length,2);assert.equal(encountered.mastered,true);
+assert.equal((await data(await call('vocabulary','GET',{device:'desktop',query:'?q=准确&status=mastered'}))).total,1);
+assert.equal((await data(await call('vocabulary','GET',{query:'?q=%'}))).total,0);
+assert.equal((await data(await call('vocabulary','GET',{owner:'another-owner'}))).total,0);
+await data(await call('vocabulary','POST',{owner:'another-owner',body:wordInput}),404);
+await data(await call('vocabulary','PATCH',{owner:'another-owner',body:{id:word.id,mastered:false}}),404);
+await data(await call('vocabulary','DELETE',{owner:'another-owner',query:'?id='+word.id}));assert.equal((await data(await call('vocabulary'))).total,1);
+await data(await call('vocabulary','POST',{body:{...wordInput,original:'other'}}),400);
+console.log('PASS: vocabulary detection validation, idempotent word collection, case-insensitive merging, multiple sources, mastery retention, search and account isolation.');
 await data(await call('notes','DELETE',{query:'?id='+n.id}));assert.equal((await data(await call('notes'))).length,0);
 await data(await call('notes','POST',{body:{paperId:p.id,text:'Cascade cleanup check',page:1}}));await data(await call('paper','DELETE',{id:p.id}));assert.equal(files.size,0);assert.equal((await data(await call('notes'))).length,0);assert.equal((await data(await call('papers'))).length,0);
 assert.equal((await data(await call('research','GET',{query:'?paper='+p.id}))).length,0);
 
-assert.equal(sql.prepare('SELECT count(*) AS n FROM reading_states').get().n,0);
+assert.equal((await data(await call('vocabulary'))).total,1,'learned words survive paper deletion');await data(await call('vocabulary','DELETE',{query:'?id='+word.id}));assert.equal((await data(await call('vocabulary'))).total,0);assert.equal(sql.prepare('SELECT count(*) AS n FROM reading_states').get().n,0);assert.equal(sql.prepare('SELECT count(*) AS n FROM translation_paragraphs').get().n,0);
 await data(await call('account','POST',{body:{action:'logout'}}));
 await data(await call('papers'),401);await data(await call('papers','GET',{device:'desktop'}));
 for(let i=0;i<5;i++)await data(await call('account','POST',{body:{action:'login',username:'reader.one',password:'wrong'}}),400);

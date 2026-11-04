@@ -1,17 +1,18 @@
 {
-  "version": "1.3.0",
+  "version": "1.4.0",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
   "sizeMB": 200.7,
-  "sha256": "8279595f975fce582c5fffcddc9d706c16127089eb001e06432dbe1bfb037f33",
-  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.3.0/Paperleaf-Setup-1.3.0-Windows-x64.exe",
+  "sha256": "1d3463c4e3408fc9628901e1ed97f98ec71d8d301811113f15376ce82caf354d",
+  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.0/Paperleaf-Setup-1.4.0-Windows-x64.exe",
   "date": "2026-11-04",
   "notes": [
-    "GPT 回复、译文和笔记支持标题、列表、表格、代码、公式与页码跳转。",
-    "新增应用图标与阅读设计；目录和右侧栏可拖动调整，记住布局。",
-    "显示实际生成阶段、耗时、输出长度及模型提供的公开思考摘要。",
-    "Codex 连接窗口支持刷新额度、查看剩余比例与重置时间。",
-    "按当前模型能力选择思考强度，用于翻译、问答、识别、总结和 PPT。",
-    "网站与仓库公开，网站编辑仅限所有者，个人资料仍需账号登录。"
+    "新增云端单词本：GPT 识别单词，保存释义、文献语境、例句与来源，支持复习和导出。",
+    "全文逐段中英对照翻译，逐段保存、暂停继续、失败重试与双语导出。",
+    "GPT 支持连续追问、独立对话历史、重新打开继续与保存重试。",
+    "按翻译、识别、问答、总结与 PPT 推荐账号可用模型及思考强度，偏好分别保存。",
+    "采用 shadcn/ui 统一工作台、阅读侧栏、输入控件、弹窗与单词本，改善对比度和布局。",
+    "显示 Codex 实际公开进展、计划与重试事件；仅在提供时显示公开思考摘要。",
+    "修复中文 Markdown 加粗、导入分析窗口抖动及桌面快捷方式图标。"
   ]
 }

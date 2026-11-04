@@ -25,7 +25,7 @@ const codex=path.join(work,'codex');await fs.rm(codex,{recursive:true,force:true
 // Preserve the upstream license and package-relative resources with the native binary.
 for(const name of ['LICENSE','NOTICE']){const response=await fetch(`https://raw.githubusercontent.com/openai/codex/rust-v${codexVersion}/${name}`);if(!response.ok)throw Error(`Missing Codex ${name}`);await fs.writeFile(path.join(codex,name),await response.text());}
 const roots=await packager({dir:source,out:path.join(work,'release'),platform:'win32',arch:'x64',electronVersion,name:'Paperleaf',appVersion:version,appBundleId:'com.paperleaf.reader',executableName:'Paperleaf',icon:path.join(root,'desktop/assets/paperleaf.ico'),overwrite:true,asar:true,prune:false,extraResource:[codex],win32metadata:{CompanyName:'Paperleaf',FileDescription:'Paperleaf literature reader',ProductName:'Paperleaf',InternalName:'Paperleaf'},download:{cacheRoot:path.join(work,'electron-cache')}});
-const output=roots[0];await fs.copyFile(path.join(root,'desktop','README.md'),path.join(output,'使用说明.md'));
+const output=roots[0];await fs.copyFile(path.join(root,'desktop/assets/paperleaf.ico'),path.join(output,`paperleaf-${version}.ico`));await fs.copyFile(path.join(root,'desktop','README.md'),path.join(output,'使用说明.md'));
 // Product UI supports Chinese and English. Preserve both Chinese variants and
 // the Chromium English fallback, while omitting unused browser locale packs.
 const supportedLocales=new Set(['en-US.pak','zh-CN.pak','zh-TW.pak']);

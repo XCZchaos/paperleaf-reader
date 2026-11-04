@@ -10,7 +10,7 @@ export async function bridgeCall<T=any>(path:string,options:RequestInit={}):Prom
  try{res=await fetch(bridgeAddress+path,{...options,headers:{'Content-Type':'application/json','X-Paperleaf-Token':token},credentials:'omit',referrerPolicy:'no-referrer',signal:options.signal||AbortSignal.timeout(20000)});}catch(e){if(options.signal?.aborted)throw e;throw Error('无法连接本机程序。请确认它已启动，并允许浏览器访问本地网络（建议使用桌面 Chrome / Edge）。')}
  const data:any=await res.json();if(!res.ok)throw Error(data.error||'Codex 连接失败');if(path.startsWith('/status'))requireCurrentBridge(data.version);return data;
 }
-export async function runCodexTask(input:{kind:ResearchKind|'metadata';title:string;pages:PageText[];selection?:string;question?:string;history?:{role:string;text:string}[];slideCount?:number;model?:string;effort?:string},signal:AbortSignal,onProgress:(j:CodexJob)=>void):Promise<CodexJob>{
+export async function runCodexTask(input:{kind:ResearchKind|'metadata';title:string;pages:PageText[];selection?:string;question?:string;history?:{role:string;text:string}[];detectVocabulary?:boolean;translationMode?:'paragraph';slideCount?:number;model?:string;effort?:string},signal:AbortSignal,onProgress:(j:CodexJob)=>void):Promise<CodexJob>{
  const id=crypto.randomUUID();
  const cancel=()=>{void bridgeCall(`/jobs/${id}/cancel`,{method:'POST',body:'{}'}).catch(()=>{});};
  signal.addEventListener('abort',cancel,{once:true});

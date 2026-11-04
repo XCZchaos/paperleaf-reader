@@ -1,9 +1,12 @@
-export type PageText={page:number;text:string};
+export type PageText={page:number;text:string;paragraphs?:string[]};
 export type Deck={title:string;subtitle:string;slides:{title:string;bullets:string[];speakerNotes:string;pages:number[]}[]};
 export type PaperMetadata={title:string;authors:string;year:string;journal:string;doi:string;abstract:string;keywords:string[]};
 export type ResearchKind='translate'|'ask'|'summary'|'slides';
-export type ResearchResult={id:string;paperId:string;kind:ResearchKind;question:string;text:string;deck:Deck|null;page:number;pages:number[];model:string;created:number};
+export type ResearchResult={id:string;paperId:string;kind:ResearchKind;question:string;text:string;deck:Deck|null;page:number;pages:number[];model:string;created:number;conversationId?:string;parentId?:string;selection?:string;effort?:string;process?:{events?:ProgressEvent[];reasoningSummary?:string;created:number;completedAt?:number|null}};
 export type RateWindow={usedPercent:number;windowDurationMins:number|null;resetsAt:number|null};
 export type RateSnapshot={limitId?:string|null;limitName?:string|null;primary?:RateWindow|null;secondary?:RateWindow|null;credits?:{hasCredits:boolean;unlimited:boolean;balance:string|null}|null};
 export type CodexStatus={connected:boolean;account:{email:string|null;plan:string}|null;models:{id:string;name:string;default:boolean;reasoningEfforts?:{id:string;description:string}[];defaultEffort?:string}[];rateLimits:RateSnapshot|null;rateLimitsByLimitId?:Record<string,RateSnapshot>|null;rateLimitsUpdatedAt?:number|null;rateLimitsWarning?:string;ordinaryUsageAllowed?:boolean|null;login?:{done:boolean;success:boolean;error:string}|null;warning?:string;version:string};
-export type CodexJob={effort?:string|null;stage?:string;reasoningSummary?:string;activity?:string;updated?:number;completedAt?:number|null;id:string;kind:ResearchKind|'metadata';metadata?:PaperMetadata|null;status:'preparing'|'running'|'completed'|'error'|'cancelled';text:string;error:string;deck:Deck|null;model:string;pages:number[];created:number};
+export type ProgressEvent={id:string;kind:'stage'|'commentary'|'plan'|'retry';title:string;text:string;at:number;done:boolean};
+export type Vocabulary={word:string;phonetic:string;partOfSpeech:string;meaning:string;contextMeaning:string;examples:{en:string;zh:string}[];relatedWords:string[]};
+export type VocabularyRecord={id:string;word:string;details:Vocabulary;answer:string;mastered:boolean;encounters:number;created:number;updated:number;sources:{paperId:string;title:string;page:number;contextMeaning:string;added:number}[]};
+export type CodexJob={vocabulary?:Vocabulary|null;events?:ProgressEvent[];effort?:string|null;stage?:string;reasoningSummary?:string;activity?:string;updated?:number;completedAt?:number|null;id:string;kind:ResearchKind|'metadata';metadata?:PaperMetadata|null;status:'preparing'|'running'|'completed'|'error'|'cancelled';text:string;error:string;deck:Deck|null;model:string;pages:number[];created:number};

@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {pdfParagraphs,boundedParagraphs,paragraphsFromText} from '../lib/pdf-paragraphs.mjs';
+import {conversationContext} from '../lib/chat-context.mjs';
+const line=(str,x,y,width=200,height=10)=>({str,transform:[height,0,0,height,x,y],height,width,hasEOL:true});
+assert.deepEqual(pdfParagraphs([line('A multi-',20,700),line('column paper.',20,687),line('Next paragraph.',32,665),line('In the right column.',300,700),line('This continues.',300,687)]),['A multicolumn paper.','Next paragraph.','In the right column. This continues.']);
+assert.deepEqual(pdfParagraphs([]),[]);
+assert.deepEqual(pdfParagraphs([line('Heading',20,700,70,16),line('Paragraph under heading.',20,675)]),['Heading','Paragraph under heading.']);
+assert.deepEqual(paragraphsFromText('This is one.\nNext line.\n\nNew paragraph.'),['This is one. Next line.','New paragraph.']);
+const long=Array.from({length:5000},(_,i)=>`word${i}`).join(' '),chunks=boundedParagraphs([long]);assert(chunks.every(p=>p.length<=6000));assert.equal(chunks.join(' '),long);
+const records=Array.from({length:31},(_,i)=>({question:'Question '+i,selection:i===30?'chosen evidence':'',text:'Answer '+i}));let result=conversationContext(records);assert.equal(result.usedTurns,20);assert.equal(result.olderCount,11);assert.equal(result.history[0].text,'Question 11');assert(result.history.at(-2).text.includes('chosen evidence'));assert.equal(result.history.at(-1).text,'Answer 30');
+result=conversationContext([...records,{question:'long',text:'x'.repeat(80000)}]);assert(result.excerpted);assert(result.history.every(m=>m.text.length<=12000));assert(result.history.reduce((n,m)=>n+m.text.length,0)<=48000);assert.equal(result.history.length%2,0);assert.equal(conversationContext(records,8).history.length,8);
+console.log('PASS: layout-aware paragraph extraction, column boundaries, hyphen repair, bounded long paragraphs, recent paired conversation context, long-answer excerpts and legacy bridge budget.');
+
+const {translationSuggestions}=await import('../lib/translation-models.mjs');const suggestions=translationSuggestions([{id:'gpt-6-luna',name:'Luna',reasoningEfforts:[{id:'low'}]},{id:'gpt-6.1-sol',name:'Sol',reasoningEfforts:[{id:'medium'}]},{id:'other',name:'Other'}]);assert.deepEqual(suggestions.map(s=>s.id),['gpt-6-luna','gpt-6.1-sol']);assert.equal(suggestions[0].effort,'low');assert.equal(suggestions[1].effort,'');assert.deepEqual(translationSuggestions([]),[]);console.log('PASS: translation suggestions only include account-available models and supported reasoning effort.');
+
+const {taskModelAdvice}=await import('../lib/task-models.mjs');const models=[{id:'gpt-6.1-sol',name:'Sol',reasoningEfforts:[{id:'medium'},{id:'low'}]},{id:'gpt-6-astra',name:'Astra',reasoningEfforts:[{id:'high'}]},{id:'gpt-6-luna',name:'Luna',reasoningEfforts:[{id:'low'}]}];assert.equal(taskModelAdvice('metadata',models).options[0].id,'gpt-6-luna');for(const task of ['ask','summary','slides']){const options=taskModelAdvice(task,models).options;assert.equal(options[0].effort,'medium');assert.equal(options.find(o=>o.id==='gpt-6-astra').effort,'high');assert(options.every(o=>models.some(m=>m.id===o.id)))}console.log('PASS: per-feature recommendations honor account model capabilities.');
