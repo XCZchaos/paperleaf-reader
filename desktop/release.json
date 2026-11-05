@@ -1,16 +1,17 @@
 {
-  "version": "1.4.1",
+  "version": "1.4.2",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
-  "sizeMB": 200.8,
-  "sha256": "72359d6b581f61923fea8c6a5b5a36460c23350bada446cc7db485b7faa4c7ee",
-  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.1/Paperleaf-Setup-1.4.1-Windows-x64.exe",
-  "date": "2026-11-04",
+  "sizeMB": 200.7,
+  "sha256": "3e622e05b6aba8df75e355b5e7760b3dd00a8e41ea378d4f60509378ee3fd362",
+  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.2/Paperleaf-Setup-1.4.2-Windows-x64.exe",
+  "date": "2026-11-05",
   "notes": [
-    "复古文献馆界面：暖纸色、墨绿、衬线标题、细线书目和夜读主题。",
-    "Codex 默认采用 HTTP 流式兼容连接，减少部分网络或代理下的 WebSocket 握手问题；仍使用原账号登录与可用额度。",
-    "根据实际上游信息区分重试原因，保留次数与时间；未知原因明确标注。",
-    "连接窗口的“测试 GPT”显示首次输出时间、总耗时和重试次数。",
-    "8 次真实短材料测试全部完成且无重试；不同网络、模型和阅读范围仍可能产生不同耗时或重试。"
+    "论文拖动与 Ctrl / ⌘ + 滚轮缩放，按指针缩放至 50%–250%。",
+    "PDF 画笔与可移动、调整大小的文本框；橡皮、撤销/重做、云端保存和批注导出。",
+    "更舒展的笔记编辑区与卡片，支持收起长摘录、搜索和排序。",
+    "笔记与译文可携带原文、关联页码持续追问 GPT，并独立保存对话。",
+    "全文翻译优先摘要和正文，恢复双栏阅读顺序，过滤常见页眉页脚与参考文献；保留全部文字模式和历史译文。",
+    "新的 Windows EXE 安装包与更新说明，保留原账号和云端资料。"
   ]
 }

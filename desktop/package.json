@@ -1,1 +1,1 @@
-{"name":"paperleaf-desktop","productName":"Paperleaf","version":"1.4.1","private":true,"type":"module","main":"desktop/main.mjs","description":"个人文献阅读、云端笔记与 Codex 助手","author":"Paperleaf","license":"UNLICENSED"}
+{"name":"paperleaf-desktop","productName":"Paperleaf","version":"1.4.2","private":true,"type":"module","main":"desktop/main.mjs","description":"个人文献阅读、云端笔记与 Codex 助手","author":"Paperleaf","license":"UNLICENSED"}

@@ -7,7 +7,7 @@ on:
       tag:
         description: Existing release tag to test
         required: true
-        default: v1.4.1
+        default: v1.4.2
 permissions:
   contents: read
 jobs:
@@ -20,9 +20,26 @@ jobs:
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Prepare previous version and synthetic retained data
+        shell: pwsh
+        run: |
+          gh release download v1.4.1 --pattern 'Paperleaf-Setup-1.4.1-Windows-x64.exe' --dir work/previous
+          if ($LASTEXITCODE -ne 0) { throw 'Previous release download failed' }
+          $previous = Get-Item work/previous/Paperleaf-Setup-1.4.1-Windows-x64.exe
+          if ((Get-FileHash $previous.FullName -Algorithm SHA256).Hash.ToLower() -ne '72359d6b581f61923fea8c6a5b5a36460c23350bada446cc7db485b7faa4c7ee') { throw 'Previous installer SHA-256 mismatch' }
+          $process = Start-Process $previous.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'Previous version installation failed' }
+          $installedVersion = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf).DisplayVersion
+          if ($installedVersion -ne '1.4.1') { throw 'Previous installed version mismatch' }
+          $profile = Join-Path $env:APPDATA 'Paperleaf'
+          New-Item -ItemType Directory -Force $profile | Out-Null
+          Set-Content -Path (Join-Path $profile 'upgrade-test-marker.txt') -Value 'synthetic retained profile fixture'
+          Write-Output 'PASS: previous version installed; synthetic profile marker prepared.'
       - name: Download and verify released EXE
         shell: pwsh
         run: |
@@ -39,6 +56,10 @@ jobs:
           $installedVersion = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf).DisplayVersion
           if ($installedVersion -ne $release.version) { throw 'Installed version mismatch' }
           if (!(Test-Path "$install\Paperleaf.exe")) { throw 'Desktop executable missing' }
+          $productVersion = (Get-Item "$install\Paperleaf.exe").VersionInfo.ProductVersion
+          if ($productVersion -notin @($release.version, "$($release.version).0")) { throw 'Executable product version mismatch' }
+          $marker = Join-Path $env:APPDATA 'Paperleaf\upgrade-test-marker.txt'
+          if ((Get-Content $marker -Raw).Trim() -ne 'synthetic retained profile fixture') { throw 'Upgrade did not preserve profile data' }
           if (!(Test-Path "$install\Uninstall Paperleaf.exe")) { throw 'Uninstaller missing' }
           $brandIcon = "$install\paperleaf-$($release.version).ico"
           if (!(Test-Path $brandIcon)) { throw 'Versioned application icon missing' }
@@ -55,7 +76,7 @@ jobs:
           Write-Output 'PASS: desktop and Start Menu shortcuts use the verified Paperleaf brand icon.'
           "PAPERLEAF_TEST_CODEX_BINARY=$install\resources\codex\bin\codex.exe" >> $env:GITHUB_ENV
           "PAPERLEAF_TEST_DESKTOP=$install\Paperleaf.exe" >> $env:GITHUB_ENV
-          Write-Output "PASS: released EXE installed successfully, version $installedVersion."
+          Write-Output "PASS: released EXE upgraded 1.4.1 to $installedVersion and preserved profile data."
       - name: Create a real thread with the installed Codex binary
         run: node scripts/check-codex-protocol.mjs
       - name: Desktop process starts

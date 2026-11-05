@@ -8,17 +8,17 @@
 
 Paperleaf brings PDF reading, bilingual translation, research notes, vocabulary, and GPT conversations into one workspace. The web app stores your library in the cloud. The Windows client bundles Codex and uses official account authorization for model requests.
 
-[Open the web app](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.1/Paperleaf-Setup-1.4.1-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
+[Open the web app](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.2/Paperleaf-Setup-1.4.2-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
 
 | Current version | Desktop platform | Interface | Status |
 | --- | --- | --- | --- |
-| **1.4.1** | Windows 10 / 11 · x64 | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
+| **1.4.2** | Windows 10 / 11 · x64 | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
 
 The application interface is primarily Chinese. Paperleaf is an independent application, not an official OpenAI product. Model access and usage limits depend on the signed-in Codex account.
 
-## Reading workspace update · 2026-11-05
+## 1.4.2 · PDF annotations and contextual conversations
 
-The desktop installer remains **1.4.1**. This is a hosted UI update: reopen or refresh the desktop reading view to load it.
+This release provides a new **1.4.2 Windows EXE installer**, the updated hosted reading workspace, and the in-app update feed. Close the previous app before installing, or use the desktop update panel. Existing accounts and cloud records are retained.
 
 - Pan the PDF with the hand tool or Space + drag. **Ctrl / ⌘ + wheel** zooms around the pointer within the reading area (50%–250%). Text selection remains a separate tool.
 - Draw on PDF pages or place movable, resizable text boxes. Ink colors/widths, erasing, undo/redo and JSON export are included. Annotations use normalized page coordinates and sync to the owner's cloud account. They are stored separately; downloading the original PDF does not embed them.
@@ -26,7 +26,7 @@ The desktop installer remains **1.4.1**. This is a hosted UI update: reopen or r
 - Follow up directly on drafts, saved notes, selected translations, translation history and full-text paragraphs. Each source has saved conversations carrying the original text, note/translation and page context. Long sources are explicitly excerpted.
 - Body-first translation restores two-column order and paragraph indentation, repairs line-end hyphens, and filters detected front matter, repeated margins and references. An all-text alternative and legacy translations remain separately accessible. Complex layouts may still need review; scans require OCR.
 
-See the [update and verification record](docs/releases/web-2026-11-05.md).
+See the [1.4.2 release notes](docs/releases/v1.4.2.md) and [reading-workspace verification record](docs/releases/web-2026-11-05.md).
 
 ## Preview
 
@@ -83,7 +83,7 @@ Full-paper translation saves each paragraph, resumes unfinished work, retries fa
 
 ### First launch on Windows
 
-1. Download [Paperleaf-Setup-1.4.1-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.1/Paperleaf-Setup-1.4.1-Windows-x64.exe) and run the installer. It is approximately **200.8 MiB**; no ZIP extraction is needed.
+1. Download [Paperleaf-Setup-1.4.2-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.2/Paperleaf-Setup-1.4.2-Windows-x64.exe) and run the installer. It is approximately **200.7 MiB**; no ZIP extraction is needed.
 2. Open Paperleaf, verify your website identity through ChatGPT, then register or sign in to Paperleaf. Use an independent Paperleaf password and keep the recovery code, which is displayed only once.
 3. Open the Codex connection panel and choose “使用 ChatGPT 登录”. Complete official authorization in the system browser, then return to the reader.
 4. Run “测试 GPT” to verify a real reply. This uses a small amount of account quota and reports first output, total duration, and retries.
@@ -312,6 +312,7 @@ Use an already-authorized Codex profile that you are entitled to access. Where s
 
 | Version | Highlights |
 | --- | --- |
+| [1.4.2](docs/releases/v1.4.2.md) | PDF panning/zoom, pen/text annotations, spacious notes, contextual follow-ups, body-first translation |
 | [1.4.1](docs/releases/v1.4.1.md) | Archive-inspired UI, HTTP streaming compatibility, real retry classification, connection timings |
 | [1.4.0](docs/releases/v1.4.0.md) | shadcn/ui, follow-up conversations, full-paper bilingual translation, vocabulary, task-specific model advice |
 | [1.3.0](docs/releases/v1.3.0.md) | Markdown / math, resizable panels, public progress, reasoning effort, and usage UI |
