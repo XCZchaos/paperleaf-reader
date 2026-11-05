@@ -1,8 +1,9 @@
-export type PageText={page:number;text:string;paragraphs?:string[]};
+export type ReadingContext={kind:'note'|'draft'|'translation'|'paragraph';id:string;page:number;original:string;content:string;excerpted?:boolean};
+export type PageText={page:number;text:string;paragraphs?:string[];bodyParagraphs?:string[];bodyExcluded?:number;bodyReason?:string};
 export type Deck={title:string;subtitle:string;slides:{title:string;bullets:string[];speakerNotes:string;pages:number[]}[]};
 export type PaperMetadata={title:string;authors:string;year:string;journal:string;doi:string;abstract:string;keywords:string[]};
 export type ResearchKind='translate'|'ask'|'summary'|'slides';
-export type ResearchResult={id:string;paperId:string;kind:ResearchKind;question:string;text:string;deck:Deck|null;page:number;pages:number[];model:string;created:number;conversationId?:string;parentId?:string;selection?:string;effort?:string;process?:{events?:ProgressEvent[];reasoningSummary?:string;created:number;completedAt?:number|null}};
+export type ResearchResult={id:string;paperId:string;kind:ResearchKind;question:string;text:string;deck:Deck|null;page:number;pages:number[];model:string;created:number;readingContext?:ReadingContext|null;conversationId?:string;parentId?:string;selection?:string;effort?:string;process?:{events?:ProgressEvent[];reasoningSummary?:string;created:number;completedAt?:number|null}};
 export type RateWindow={usedPercent:number;windowDurationMins:number|null;resetsAt:number|null};
 export type RateSnapshot={limitId?:string|null;limitName?:string|null;primary?:RateWindow|null;secondary?:RateWindow|null;credits?:{hasCredits:boolean;unlimited:boolean;balance:string|null}|null};
 export type CodexStatus={connected:boolean;account:{email:string|null;plan:string}|null;models:{id:string;name:string;default:boolean;reasoningEfforts?:{id:string;description:string}[];defaultEffort?:string}[];rateLimits:RateSnapshot|null;rateLimitsByLimitId?:Record<string,RateSnapshot>|null;rateLimitsUpdatedAt?:number|null;rateLimitsWarning?:string;ordinaryUsageAllowed?:boolean|null;login?:{done:boolean;success:boolean;error:string}|null;warning?:string;connection?:{transport:'http-sse';label:string};version:string};

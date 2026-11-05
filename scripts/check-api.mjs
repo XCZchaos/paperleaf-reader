@@ -129,6 +129,33 @@ await data(await call('full','PATCH',{body:{...complete,id:retry.entry.id,lease:
 await data(await call('full','PATCH',{body:{action:'release',paperId:p.id,id:reclaimed.entry.id,lease:reclaimed.lease}}));
 full=await data(await call('full','GET',{device:'desktop',query:'?paper='+p.id}));assert.equal(full.stats.done,1);assert.equal(full.stats.queued,1);assert.equal(full.entries[0].text,'第一段中文。');
 console.log('PASS: conversational history/parent validation/paging, public event storage, paragraph idempotency, exclusive multi-device claims, stale lease rejection/recovery, pause/resume, retry and tenant isolation.');
+// Contextual threads keep note and translation conversations separate across devices.
+const noteContext={kind:'note',id:n.id,page:2,original:n.quote,content:n.text};
+const contextual={...researchInput,id:crypto.randomUUID(),readingContext:noteContext};
+const contextSaved=await data(await call('research','POST',{body:contextual}));
+const contextualFollow={...contextual,id:crypto.randomUUID(),conversationId:contextSaved.id,parentId:contextSaved.id,question:'Please check my interpretation'};
+await data(await call('research','POST',{body:contextualFollow}));
+const scoped=await data(await call('research','GET',{device:'desktop',query:`?paper=${p.id}&context=note:${n.id}`}));assert.equal(scoped.length,2);assert.equal(scoped[0].readingContext.content,n.text);
+assert.equal((await data(await call('research','GET',{query:`?paper=${p.id}&context=translation:${n.id}`}))).length,0);
+assert.equal((await data(await call('research','GET',{owner:'another-owner',query:`?paper=${p.id}&context=note:${n.id}`}))).length,0);
+await data(await call('research','POST',{body:{...contextualFollow,id:crypto.randomUUID(),readingContext:{...noteContext,kind:'translation'}}}),400);
+await data(await call('research','POST',{body:{...contextual,id:crypto.randomUUID(),readingContext:{...noteContext,page:100}}}),400);
+// Annotation values persist with owner isolation and bounded normalized geometry.
+const marks=[{id:crypto.randomUUID(),kind:'pen',page:1,color:'#9d3c32',width:.003,points:[[.1,.2],[.3,.4]]},{id:crypto.randomUUID(),kind:'text',page:2,color:'#285a46',x:.2,y:.3,width:.3,height:.1,text:'A cloud PDF note',fontSize:.018}];
+await data(await call('reading','PATCH',{body:{paperId:p.id,kind:'annotations',value:marks}}));
+assert.deepEqual((await data(await call('reading','GET',{device:'desktop',query:'?paper='+p.id}))).annotations.value,marks);
+await data(await call('reading','PATCH',{owner:'another-owner',body:{paperId:p.id,kind:'annotations',value:marks}}),404);
+await data(await call('reading','PATCH',{body:{paperId:p.id,kind:'annotations',value:[{...marks[1],x:.9}]}}),400);
+// New body-only and all-text queues never overwrite the previous saved translation.
+await data(await call('full','POST',{body:{...prepare,mode:'body-v2',paragraphs:['Actual body paragraph.']}}));
+await data(await call('full','POST',{body:{...prepare,mode:'all-v2',paragraphs:['Author metadata.','Actual body paragraph.']}}));
+const bodyQueue=await data(await call('full','GET',{query:`?paper=${p.id}&mode=body-v2`}));assert.equal(bodyQueue.stats.total,1);assert(bodyQueue.hasLegacy);
+assert.equal((await data(await call('full','GET',{query:`?paper=${p.id}&mode=all-v2`}))).stats.total,2);
+assert.equal((await data(await call('full','GET',{query:`?paper=${p.id}`}))).entries[0].text,'第一段中文。');
+const bodyClaim=await data(await call('full','POST',{body:{action:'claim',paperId:p.id,mode:'body-v2'}}));assert.equal(bodyClaim.entry.original,'Actual body paragraph.');
+await data(await call('full','POST',{body:{...prepare,mode:'body-v2',page:3,paragraphs:[],skipReason:'参考文献页已从正文翻译中排除。'}}));assert.match((await data(await call('full','GET',{query:`?paper=${p.id}&mode=body-v2&page=3`}))).entries[0].error,/参考文献/);
+await data(await call('full','GET',{query:`?paper=${p.id}&mode=unsafe`}),400);
+console.log('PASS: note/translation conversation scopes, cloud annotation validation and ownership, independent extraction modes, preserved legacy translations and skip reasons.');
 // Words merge repeated encounters while preserving mastery and tenant isolation.
 const wordInfo={word:'accuracy',phonetic:'/ˈækjərəsi/',partOfSpeech:'n.',meaning:'准确性；准确率',contextMeaning:'在分类任务中预测正确的比例',examples:[{en:'Accuracy improved.',zh:'准确率提升了。'}],relatedWords:['accurate']};
 const wordInput={paperId:p.id,page:2,jobId:crypto.randomUUID(),original:'accuracy',text:'## accuracy\n准确率',vocabulary:wordInfo};

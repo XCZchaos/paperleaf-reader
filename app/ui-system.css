@@ -305,3 +305,103 @@ button,input,textarea,select{font-family:inherit}
 [data-theme=dark] .stat-icon{background:transparent}
 .reading-mode{background:var(--bg);border-color:var(--line);border-radius:4px}
 .reading-mode button[aria-pressed=true],[data-theme=dark] .reading-mode button[aria-pressed=true]{background:var(--surface);color:var(--primary);border-radius:3px;box-shadow:0 1px 3px #51432814}
+
+/* A small desk of reading tools, with the paper remaining the visual focus. */
+.pdf-tools{gap:10px;flex-wrap:wrap;height:auto;min-height:60px;padding-top:10px;padding-bottom:10px}
+.pdf-annotation-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 20px;border-bottom:1px solid var(--line);background:var(--surface);flex-shrink:0;min-height:47px}
+.pdf-annotation-tools [data-slot=toggle-group]{flex-wrap:wrap;gap:2px}
+.pdf-annotation-tools [data-slot=toggle-group-item]{gap:6px;height:30px;padding:0 8px;font-size:12px;border-radius:4px}
+.pdf-annotation-tools [data-state=on]{background:var(--primary);color:var(--primary-foreground)}
+.ink-color-label,.ink-size-label{display:flex;gap:5px;align-items:center;font-size:11px;color:var(--muted)}
+.pdf-annotation-tools select{background:var(--bg);border:1px solid var(--line);padding:4px 6px;border-radius:4px;color:var(--ink);max-width:80px}
+.annotation-save-state{font-size:10px;color:var(--muted);margin-left:auto}
+.pdf-viewport.pan-enabled,.pdf-viewport.pan-enabled .textLayer{cursor:grab;user-select:none}
+.pdf-viewport.is-panning,.pdf-viewport.is-panning .textLayer{cursor:grabbing;user-select:none}
+.pdf-viewport:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+.pdf-annotation-layer{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden}
+.pdf-annotation-layer.interactive.tool-pen,.pdf-annotation-layer.interactive.tool-text{pointer-events:auto;touch-action:none;cursor:crosshair;user-select:none}
+.pdf-annotation-layer.interactive.tool-text{cursor:text}
+.pdf-ink{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.pdf-ink .erasable{pointer-events:stroke;cursor:crosshair}
+.pdf-text-note{position:absolute;pointer-events:none;background:#fff8dce8;border:1px solid #b1a17470;border-radius:2px;box-shadow:1px 2px 3px #4e432a0c;line-height:1.55}
+.pdf-annotation-layer.interactive.tool-select .pdf-text-note,.pdf-annotation-layer.interactive.tool-text .pdf-text-note,.pdf-annotation-layer.interactive.tool-eraser .pdf-text-note{pointer-events:auto}
+.pdf-text-note textarea{width:100%;height:100%;min-height:0;resize:none;border:0;border-radius:0;padding:.45em .6em;font:inherit;color:inherit!important;background:transparent!important;box-shadow:none;line-height:inherit;overflow:auto}
+.pdf-text-note textarea:focus{outline:none;box-shadow:inset 0 0 0 1px #8f7546}
+.pdf-text-note-controls{position:absolute;top:0;right:0;transform:translateY(-100%);display:flex;background:#fbf4df;border:1px solid #b1a174;color:#4e432a;opacity:0;pointer-events:none}
+.pdf-text-note-controls button{height:23px;width:24px;color:inherit;touch-action:none}
+.pdf-text-note-controls button:first-child{cursor:move}
+.pdf-text-note:hover .pdf-text-note-controls,.pdf-text-note.is-selected .pdf-text-note-controls,.pdf-text-note:focus-within .pdf-text-note-controls{opacity:1;pointer-events:auto}
+.pdf-text-resize{position:absolute;bottom:0;right:0;width:20px!important;height:20px!important;cursor:nwse-resize;touch-action:none;color:#746038!important;opacity:0;background:#fbf4dfcc}
+.pdf-text-note:hover .pdf-text-resize,.pdf-text-note.is-selected .pdf-text-resize{opacity:1}
+.pdf-annotation-layer:not(.interactive) .pdf-text-note-controls,.pdf-annotation-layer:not(.interactive) .pdf-text-resize{display:none}
+.notes-home{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+.notes-home[hidden],.translation-panel>div[hidden]{display:none}
+.context-chat{display:flex;flex-direction:column;min-height:0;overflow:auto;flex:1;padding:0 16px 20px}
+.context-chat-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:12px;gap:8px;color:var(--primary)}
+.context-chat-header>span{display:flex;align-items:center;gap:6px;font-size:12px}
+.translation-panel .context-chat{padding:0}
+.chat-attached-context{padding:10px 12px;background:var(--warm);border:1px solid var(--line);border-left:3px solid var(--primary);border-radius:4px;margin-bottom:12px;font-size:12px}
+.chat-attached-context summary{cursor:pointer;color:var(--primary);font-weight:600}
+.chat-attached-context blockquote{max-height:150px;overflow:auto;white-space:pre-wrap;margin:12px 0;font-size:12px;color:var(--muted)}
+.chat-attached-context .markdown-body{max-height:200px;overflow:auto;font-size:13px}
+.chat-transcript[data-slot=message-scroller]{height:clamp(250px,43vh,540px);min-height:200px;margin:12px 0;border-bottom:1px solid var(--line);flex:none}
+.chat-transcript [data-slot=message-scroller-content]{gap:22px;padding:3px 5px 24px}
+.chat-transcript .chat-user{margin-bottom:16px;width:100%}
+.chat-transcript [data-slot=bubble]{max-width:94%}
+.chat-transcript .chat-answer{gap:10px}
+.chat-composer [data-slot=field-label]{font-size:12px;color:var(--primary)}
+.chat-composer [data-slot=input-group]{background:var(--surface);border-color:var(--line)}
+.chat-composer [data-slot=input-group] textarea{margin:0;min-height:95px}
+.translation-extraction-label{display:flex;flex-direction:column;gap:8px;font-size:12px;font-weight:600;margin:18px 0;color:var(--primary)}
+.translation-extraction-label select{min-width:0;width:100%;padding:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:4px}
+.translation-extraction-label small{font-size:11px;font-weight:400;line-height:1.7;color:var(--muted)}
+.bilingual-card footer,.parallel-paragraph footer,.note-item footer{flex-wrap:wrap;gap:6px}
+@media(max-width:1100px){.pdf-annotation-tools [data-slot=toggle-group-item]>span{display:none}.pdf-annotation-tools{padding:7px 12px}.annotation-save-state{max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+@media(max-width:760px){.pdf-tools{padding:8px;gap:6px}.pdf-annotation-tools{gap:4px}.pdf-annotation-tools .tool-sep{display:none}.annotation-save-state{display:none}.pdf-footer{font-size:10px}.pdf-annotation-tools [data-slot=toggle-group-item]{padding:0 7px}.context-chat{padding:0 12px 18px}}
+
+.notes-heading{padding:26px 26px 20px;align-items:flex-start;gap:12px}
+.notes-heading .notes-title-block{display:block;min-width:0}
+.notes-title-block .eyebrow{font-size:9px;letter-spacing:.14em;color:var(--muted);background:none;padding:0}
+.notes-heading .notes-title-block h3{font-size:23px;font-weight:500;margin:12px 0 9px;line-height:1.4;font-family:var(--serif)}
+.notes-title-block p{font-size:12px;color:var(--muted);line-height:1.7;margin:0}
+.notes-scroll{padding:0 24px 36px;scrollbar-gutter:stable}
+.notes-scroll .note-composer{border-radius:6px;background:var(--surface);box-shadow:0 3px 0 -1px var(--bg),0 4px 0 var(--line);margin-bottom:32px}
+.note-editor-heading{display:flex;gap:8px;align-items:center;padding:18px 18px 4px;color:var(--primary);font-size:13px}
+.note-editor-heading b{font-weight:600}.note-editor-heading>span{font-size:10px;color:var(--muted);margin-left:auto}
+.notes-scroll .composer-top{padding:15px 18px 12px;border:0;gap:14px;flex-wrap:wrap}
+.notes-scroll .composer-top select{font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 9px}
+.notes-scroll .composer-top>span{font-size:11px;color:var(--muted)}
+.notes-scroll .note-composer>textarea{min-height:220px;padding:16px 20px;font-size:15px;line-height:2.05;letter-spacing:.01em;resize:vertical;background:transparent}
+.notes-scroll .note-composer>textarea::placeholder{color:var(--muted);opacity:.7}
+.notes-scroll .composer-bottom{padding:14px 18px;gap:12px;background:var(--bg)}
+.notes-scroll .note-composer>button{margin:14px 14px 0;font-size:12px;justify-content:flex-start}
+.notes-scroll .draft-status{margin:0;padding:14px 18px 18px;gap:10px;flex-wrap:wrap;font-size:10px;line-height:1.7}
+.notes-scroll .draft-status>span{max-width:100%;width:100%}
+.draft-source{margin:4px 18px 0;font-size:12px;color:var(--muted)}
+.draft-source summary{display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 0;border-block:1px dashed var(--line)}
+.draft-source .draft-quote{margin:12px 0;padding:12px;font-size:12px;line-height:1.9;max-height:220px;overflow:auto}
+.notes-collection-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 18px}
+.notes-collection-heading h4{font-size:14px;font-weight:600;color:var(--ink);margin:0}
+.notes-collection-heading h4 span{font-size:11px;color:var(--muted);margin-left:7px}
+.notes-collection-heading select{font-size:11px;color:var(--muted);background:transparent;border:0;min-width:85px;padding:5px 0}
+.notes-search{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:4px;background:var(--surface);padding:0 12px;margin-bottom:22px;color:var(--muted)}
+.notes-search input{border:0;box-shadow:none;background:transparent;min-width:0;font-size:12px;padding:9px 0}
+.saved-notes-list{display:flex;flex-direction:column;gap:24px}
+.saved-note-card[data-slot=card]{gap:0;padding:0;border-radius:6px;border:1px solid var(--line);background:var(--surface);box-shadow:0 3px 12px #3a302206;overflow:hidden}
+.saved-note-card [data-slot=card-header]{display:block;padding:18px 20px 0}
+.saved-note-meta{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.saved-note-meta button{padding:0;height:auto;gap:5px;color:var(--primary);font-size:12px}
+.saved-note-meta time{font-size:10px;color:var(--muted)}
+.saved-note-card [data-slot=card-content]{padding:20px}
+.saved-note-prose.markdown-body{font-size:15px;line-height:2;overflow-wrap:anywhere}
+.saved-note-prose.markdown-body p{margin:0 0 1em}.saved-note-prose.markdown-body p:last-child{margin-bottom:0}
+.saved-note-prose.markdown-body h2,.saved-note-prose.markdown-body h3{font-size:17px;margin-top:1.4em}
+.note-source{margin-bottom:20px;background:var(--bg);border:1px solid var(--line);border-left:2px solid var(--ochre);border-radius:3px;padding:12px 14px}
+.note-source summary{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;color:var(--muted)}
+.note-source summary>span:last-child{margin-left:auto;font-size:10px}
+.note-source blockquote{margin:14px 0 0;max-height:260px;overflow:auto;font-family:var(--serif);font-size:13px;line-height:1.95;white-space:pre-wrap;color:var(--ink)}
+.note-only-excerpt{font-size:12px;color:var(--muted);line-height:1.9}
+.saved-note-card [data-slot=card-footer]{padding:14px 20px;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);background:var(--bg)}
+.saved-note-card [data-slot=card-footer] button{font-size:12px}
+.saved-note-card .note-delete{margin-left:auto;color:var(--muted)}
+@media(max-width:760px){.notes-heading{padding:22px 20px 18px}.notes-scroll{padding:0 18px 30px}.notes-heading .notes-title-block h3{font-size:21px}.saved-note-card [data-slot=card-content]{padding:18px}}

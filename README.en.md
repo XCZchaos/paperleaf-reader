@@ -16,6 +16,18 @@ Paperleaf brings PDF reading, bilingual translation, research notes, vocabulary,
 
 The application interface is primarily Chinese. Paperleaf is an independent application, not an official OpenAI product. Model access and usage limits depend on the signed-in Codex account.
 
+## Reading workspace update · 2026-11-05
+
+The desktop installer remains **1.4.1**. This is a hosted UI update: reopen or refresh the desktop reading view to load it.
+
+- Pan the PDF with the hand tool or Space + drag. **Ctrl / ⌘ + wheel** zooms around the pointer within the reading area (50%–250%). Text selection remains a separate tool.
+- Draw on PDF pages or place movable, resizable text boxes. Ink colors/widths, erasing, undo/redo and JSON export are included. Annotations use normalized page coordinates and sync to the owner's cloud account. They are stored separately; downloading the original PDF does not embed them.
+- Notes have more whitespace, a larger editor, readable cards, collapsible excerpts, keyword/page search and sorting.
+- Follow up directly on drafts, saved notes, selected translations, translation history and full-text paragraphs. Each source has saved conversations carrying the original text, note/translation and page context. Long sources are explicitly excerpted.
+- Body-first translation restores two-column order and paragraph indentation, repairs line-end hyphens, and filters detected front matter, repeated margins and references. An all-text alternative and legacy translations remain separately accessible. Complex layouts may still need review; scans require OCR.
+
+See the [update and verification record](docs/releases/web-2026-11-05.md).
+
 ## Preview
 
 ![Paperleaf archive-inspired library with warm paper, ink green, book records, and reading progress](docs/images/paperleaf-retro-141.jpg)
@@ -319,4 +331,3 @@ An Issue describing the scope is helpful before a substantial change. Run checks
 See [ASSET-CREDITS.md](public/ASSET-CREDITS.md) for brand assets and photography. Third-party licenses remain in the relevant source directories and release packages. Electron, Chromium, Codex, PDF.js, and other dependencies retain their respective licenses.
 
 **This repository does not currently specify a project-level open-source license.** A dependency's license does not establish the license of Paperleaf as a whole.
-
