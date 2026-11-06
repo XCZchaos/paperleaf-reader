@@ -12,7 +12,7 @@ export function exportNotes(p:Paper,notes:Note[]){download(`# ${p.title}\n\n${p.
 
 export async function flushPendingCloudCopies(){
  let keys:string[]=[];try{keys=Object.keys(localStorage)}catch{return}
- for(const key of keys){const match=/^paperleaf-cloud-(.+)-(draft|translation)$/.exec(key);if(!match)continue;let copy:any;try{copy=JSON.parse(localStorage.getItem(key)||'null')}catch{continue}if(!copy?.pending)continue;
+ for(const key of keys){const match=/^paperleaf-cloud-(.+)-(draft|annotations)$/.exec(key);if(!match)continue;let copy:any;try{copy=JSON.parse(localStorage.getItem(key)||'null')}catch{continue}if(!copy?.pending)continue;
   try{await api('/api/reading-state',{method:'PATCH',body:JSON.stringify({paperId:match[1],kind:match[2],value:copy.value})});try{localStorage.setItem(key,JSON.stringify({...copy,pending:false}))}catch{}}
   catch(e){if((e as Error).message==='文献或笔记不存在'){localStorage.removeItem(key);continue}throw Error('还有记录尚未同步，请联网后再退出。'+(e as Error).message)}
  }

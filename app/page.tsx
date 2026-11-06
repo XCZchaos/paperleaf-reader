@@ -1,4 +1,3 @@
-import Workspace from './workspace';
-import {CodexProvider} from './codex-provider';
-import {AccountProvider} from './account-provider';
-export default function Home(){return <AccountProvider><CodexProvider><Workspace/></CodexProvider></AccountProvider>}
+import DesktopEntry from './desktop-entry';
+import DesktopDownload from './desktop/page';
+export default function Home(){return <DesktopEntry downloadPage={<DesktopDownload/>}/>}

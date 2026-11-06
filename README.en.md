@@ -6,15 +6,27 @@
 
 **From an English PDF to understanding, lasting notes, and a research presentation.**
 
-Paperleaf brings PDF reading, bilingual translation, research notes, vocabulary, and GPT conversations into one workspace. The web app stores your library in the cloud. The Windows client bundles Codex and uses official account authorization for model requests.
+Paperleaf brings PDF reading, bilingual translation, research notes, vocabulary, and GPT conversations into one workspace. Your account stores your library in the cloud. The Windows client bundles Codex and uses official account authorization for model requests.
 
-[Open the web app](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.2/Paperleaf-Setup-1.4.2-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
+[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.3/Paperleaf-Setup-1.4.3-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
 
 | Current version | Desktop platform | Interface | Status |
 | --- | --- | --- | --- |
-| **1.4.2** | Windows 10 / 11 · x64 | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
+| **1.4.3** | Windows 10 / 11 · x64 | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
 
 The application interface is primarily Chinese. Paperleaf is an independent application, not an official OpenAI product. Model access and usage limits depend on the signed-in Codex account.
+
+## 1.4.3 · Selection buffering and adjustable workspace
+
+This release provides a **1.4.3 Windows EXE installer** and the in-app update feed. The public website provides installer downloads, release notes and setup guidance. Future work targets desktop releases unless web functionality is explicitly requested. The desktop runtime still loads its reading interface and cloud APIs from the existing HTTPS origin.
+
+- Select English text to translate automatically. New selections replace the result; selecting while a request is running shows a wait dialog without cancelling it.
+- Tap **Shift** to buffer selections from one or several pages without translating yet. Tap it again to turn buffering off and translate immediately. The panel shows the active state, count and source pages.
+- A disconnected Codex prompt retains the current selection and resumes after connection. Selection translations are not automatically saved to the cloud; save a bilingual note or add a word explicitly. Existing records are preserved, as is full-paper paragraph persistence.
+- Resize toolbar heights and tool-group widths with draggable separators. Sizes persist locally; double-click, keyboard adjustments and Reset layout are supported. Return to library is now a visible button.
+- Adaptive sequential streaming polls, duplicate-update suppression, deferred Markdown rendering and scroll following that pauses when reading above the bottom. Nested cards allow scrolling back to the outer panel.
+
+See the [1.4.3 release notes](docs/releases/v1.4.3.md) and [UI verification record](docs/releases/web-2026-11-06.md) for coverage and limitations.
 
 ## 1.4.2 · PDF annotations and contextual conversations
 
@@ -45,9 +57,9 @@ See the [1.4.2 release notes](docs/releases/v1.4.2.md) and [reading-workspace ve
 | Library | Batch PDF import, duplicate detection, collections, tags, favorites, reading status, list / grid views | No for plain import |
 | Metadata | Extract title, authors, year, venue, DOI, abstract, and keywords from the first three pages; generated filenames, retained original filenames, corrections and re-identification | Yes |
 | PDF reader | Continuous vertical scrolling or horizontal pagination, outlines, search, zoom, page navigation, selection, highlights, excerpts, and saved progress | No |
-| Translation | Selected text, opt-in automatic selection translation, continuous selection queues, paragraph-by-paragraph full-paper translation, pause / resume, and retry | For generation |
+| Translation | Automatic selection translation, Shift buffering, paragraph-by-paragraph full-paper translation, pause / resume, and retry | For generation |
 | Notes | Markdown editing and rendering, source-page links, bilingual notes, draft persistence, and export | No for manual notes |
-| Vocabulary | GPT word detection, definitions, part of speech, context, examples, related words; automatic / manual collection, deduplication, mastery state, search, and export | For identification and definitions |
+| Vocabulary | GPT word detection, definitions, part of speech, context, examples, related words; explicit collection, deduplication, mastery state, search, and export | For identification and definitions |
 | Paper Q&A | Selected quotations, page ranges, follow-up questions, separate conversations, cloud history, and PDF page references | For generation |
 | Summaries | Organize the problem, methods, experiments, contributions, and limitations from a page, range, or whole paper | Yes |
 | Presentations | Generate 6 / 8 / 10 / 12 slides, edit the preview, and export a real PPTX with editable text, speaker notes, and source pages | For content generation |
@@ -59,8 +71,8 @@ Saved translations, notes, vocabulary, and GPT results remain readable after clo
 
 | Mode | Interaction | Best suited to |
 | --- | --- | --- |
-| Selection / automatic selection | Select text and translate, or explicitly enable automatic translation | Unfamiliar words and difficult sentences |
-| Continuous selection | Add passages to a sequential queue, with pause after the current passage | Close reading of selected sections |
+| Selection | Select text to translate immediately; a new selection replaces the result | Unfamiliar words and difficult sentences |
+| Shift buffering | Tap Shift to buffer selections from one or several pages; turn it off to translate immediately | Reading related excerpts together |
 | Full-paper bilingual view | Extract text by page and translate it paragraph by paragraph | Reading an entire English paper |
 
 Full-paper translation saves each paragraph, resumes unfinished work, retries failed paragraphs, links back to source pages, and exports completed English / Chinese pairs. A failed save can be retried without regenerating the same translation. See the [FAQ](#faq) for scanned PDFs and complex layouts.
@@ -69,21 +81,19 @@ Full-paper translation saves each paragraph, resumes unfinished work, retries fa
 
 ## Get started
 
-### Web or desktop?
+### Use the Windows desktop app
 
-| | Web app | Windows desktop |
-| --- | --- | --- |
-| Access | Open the website | Install the EXE and launch from Desktop / Start |
-| Library and records | Shared cloud data after sign-in | The same cloud data after sign-in |
-| GPT | Requires the optional companion on the same computer and browser pairing | Bundled Codex with an official browser authorization flow |
-| Dependencies for users | No installation for basic reading; companion requires Node.js | No separate Node.js or command-line setup |
-| Available delivery | Hosted website | Windows 10 / 11 x64 installer |
+| Surface | Purpose |
+| --- | --- |
+| Public website | Desktop installer, release notes and installation guidance |
+| Windows app | Library, PDF reading, notes, translation and GPT conversations |
+| Cloud account | Private records shared across the user's desktop clients |
 
-**Use the desktop client for the simplest GPT setup.** Advanced browser setup is documented in the [companion guide](companion/README.md). There are currently no official Paperleaf macOS / Linux desktop installers. Companion launch options for those systems do not constitute desktop releases.
+No separate Node.js or command-line setup is required. There are no official macOS / Linux desktop installers. The [companion](companion/README.md) remains in the source repository, but the public website no longer exposes a standalone reading workspace.
 
 ### First launch on Windows
 
-1. Download [Paperleaf-Setup-1.4.2-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.2/Paperleaf-Setup-1.4.2-Windows-x64.exe) and run the installer. It is approximately **200.7 MiB**; no ZIP extraction is needed.
+1. Download [Paperleaf-Setup-1.4.3-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.3/Paperleaf-Setup-1.4.3-Windows-x64.exe) and run the installer. It is approximately **200.7 MiB**; no ZIP extraction is needed.
 2. Open Paperleaf, verify your website identity through ChatGPT, then register or sign in to Paperleaf. Use an independent Paperleaf password and keep the recovery code, which is displayed only once.
 3. Open the Codex connection panel and choose “使用 ChatGPT 登录”. Complete official authorization in the system browser, then return to the reader.
 4. Run “测试 GPT” to verify a real reply. This uses a small amount of account quota and reports first output, total duration, and retries.
@@ -131,12 +141,10 @@ These are recommendations, not latency guarantees. More effort, longer context, 
 
 ```mermaid
 flowchart TB
-  Web["Browser reader"] --> API["Paperleaf cloud API"]
-  Desktop["Electron reader"] --> API
+  Desktop["Electron reader"] --> API["Paperleaf cloud API"]
   API --> D1["D1 · accounts and records"]
   API --> R2["R2 · original PDFs"]
-  Web -->|"Local pairing"| Bridge["Local companion bridge"]
-  Desktop -->|"Bounded IPC"| Bridge
+  Desktop -->|"Bounded IPC"| Bridge["Local companion bridge"]
   Bridge -->|"stdio / JSON-RPC"| Codex["Codex App Server"]
   Codex -->|"Account auth · HTTP streaming"| Model["OpenAI model service"]
 ```
@@ -146,13 +154,14 @@ The desktop client loads the same HTTPS website and runs bundled Codex locally. 
 | Data | Storage / destination |
 | --- | --- |
 | Original PDF files | Owner-authorized cloud R2 storage |
-| Metadata, collections, notes, highlights, progress, translations, words, and conversations | Owner-scoped cloud D1 database |
+| Metadata, collections, notes, highlights, progress, full-paper translations, explicitly saved words, and conversations | Owner-scoped cloud D1 database |
 | Paper text, questions, and bounded conversation context sent to GPT | OpenAI model service through local Codex |
 | Codex authorization | An isolated local profile; desktop profiles are scoped to Paperleaf users |
-| Some drafts and translation sessions awaiting cloud save | Temporary device-local state, followed by save retry |
-| Reading mode, panel widths, theme, and model preferences | Current device |
+| Some drafts and annotations awaiting cloud save | Temporary device-local state, followed by save retry |
+| Selection translations and Shift buffer | Current window memory only; no automatic saving |
+| Reading mode, panel / toolbar dimensions, theme, and model preferences | Current device |
 
-The website entry and source repository are public; website editing remains owner-only. Personal data APIs still require the matching identity and Paperleaf session. The app requires connectivity and does not provide full offline PDF reading or collaborative merging. Concurrent edits to the same draft / translation session use the last successful write.
+The website entry and source repository are public; website editing remains owner-only. Personal data APIs still require the matching identity and Paperleaf session. The app requires connectivity and does not provide full offline PDF reading or collaborative merging. Concurrent edits to the same draft / annotations use the last successful write.
 
 <details>
 <summary>Account and local-bridge implementation boundaries</summary>
@@ -312,6 +321,7 @@ Use an already-authorized Codex profile that you are entitled to access. Where s
 
 | Version | Highlights |
 | --- | --- |
+| [1.4.3](docs/releases/v1.4.3.md) | Shift buffering, selection translation, adjustable toolbars, streaming scroll, desktop-first releases |
 | [1.4.2](docs/releases/v1.4.2.md) | PDF panning/zoom, pen/text annotations, spacious notes, contextual follow-ups, body-first translation |
 | [1.4.1](docs/releases/v1.4.1.md) | Archive-inspired UI, HTTP streaming compatibility, real retry classification, connection timings |
 | [1.4.0](docs/releases/v1.4.0.md) | shadcn/ui, follow-up conversations, full-paper bilingual translation, vocabulary, task-specific model advice |
