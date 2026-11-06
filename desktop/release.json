@@ -1,17 +1,16 @@
 {
-  "version": "1.4.3",
+  "version": "1.4.4",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
-  "sizeMB": 200.7,
-  "sha256": "58031b342ca15dc4fcc5ead7d8f2342e78171ad9d906266919077ba8184edac0",
-  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.3/Paperleaf-Setup-1.4.3-Windows-x64.exe",
+  "sizeMB": 200.8,
+  "sha256": "f3f7b21a607dce4717d0bbe8e1daf3f023d11a6378ede19aed10181c7b3bf5c7",
+  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.4/Paperleaf-Setup-1.4.4-Windows-x64.exe",
   "date": "2026-11-06",
   "notes": [
-    "划选即译：新选区替换当前结果；生成中再次划选会提示等待。",
-    "Shift 暂存：开启后只收集同页或多页选文，关闭后立即翻译。",
-    "划词译文不自动保存云端；可主动保存双语笔记或加入单词本。未连接 Codex 时提示连接并保留选区。",
-    "阅读栏、批注栏与工具组支持拖动调整尺寸和记忆布局；修复卡片滚动卡住，返回文献库改成明确按钮。",
-    "优化 GPT 流式刷新和 Markdown 渲染；向上阅读暂停跟随，点击按钮回到最新内容。",
-    "发布 1.4.3 Windows EXE 并支持应用内更新；网站仅提供安装包与版本说明，保留原账号和云端资料。"
+    "新增专注阅读：F8 或点击按钮隐藏标题、目录、翻页缩放、批注栏和底栏，让 PDF 占满左侧阅读区。",
+    "右侧笔记、翻译和 GPT 助手保持可用，未保存笔记与 Shift 暂存状态保留。",
+    "悬浮「显示工具栏」、F8 或在阅读区按 Esc 恢复；切换保留阅读位置和侧栏尺寸，记住当前设备的模式。",
+    "Windows 菜单栏同步收起；Alt 临时显示，视图菜单也可切换专注阅读。",
+    "发布 1.4.4 Windows EXE 安装包，支持应用内检查更新；网站继续提供桌面下载和说明。"
   ]
 }

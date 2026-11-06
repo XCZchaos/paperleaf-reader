@@ -7,7 +7,7 @@ on:
       tag:
         description: Existing release tag to test
         required: true
-        default: v1.4.3
+        default: v1.4.4
 permissions:
   contents: read
 jobs:
@@ -28,14 +28,14 @@ jobs:
       - name: Prepare previous version and synthetic retained data
         shell: pwsh
         run: |
-          gh release download v1.4.2 --pattern 'Paperleaf-Setup-1.4.2-Windows-x64.exe' --dir work/previous
+          gh release download v1.4.3 --pattern 'Paperleaf-Setup-1.4.3-Windows-x64.exe' --dir work/previous
           if ($LASTEXITCODE -ne 0) { throw 'Previous release download failed' }
-          $previous = Get-Item work/previous/Paperleaf-Setup-1.4.2-Windows-x64.exe
-          if ((Get-FileHash $previous.FullName -Algorithm SHA256).Hash.ToLower() -ne '3e622e05b6aba8df75e355b5e7760b3dd00a8e41ea378d4f60509378ee3fd362') { throw 'Previous installer SHA-256 mismatch' }
+          $previous = Get-Item work/previous/Paperleaf-Setup-1.4.3-Windows-x64.exe
+          if ((Get-FileHash $previous.FullName -Algorithm SHA256).Hash.ToLower() -ne '58031b342ca15dc4fcc5ead7d8f2342e78171ad9d906266919077ba8184edac0') { throw 'Previous installer SHA-256 mismatch' }
           $process = Start-Process $previous.FullName -ArgumentList '/S' -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw 'Previous version installation failed' }
           $installedVersion = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf).DisplayVersion
-          if ($installedVersion -ne '1.4.2') { throw 'Previous installed version mismatch' }
+          if ($installedVersion -ne '1.4.3') { throw 'Previous installed version mismatch' }
           $profile = Join-Path $env:APPDATA 'Paperleaf'
           New-Item -ItemType Directory -Force $profile | Out-Null
           Set-Content -Path (Join-Path $profile 'upgrade-test-marker.txt') -Value 'synthetic retained profile fixture'
@@ -76,7 +76,7 @@ jobs:
           Write-Output 'PASS: desktop and Start Menu shortcuts use the verified Paperleaf brand icon.'
           "PAPERLEAF_TEST_CODEX_BINARY=$install\resources\codex\bin\codex.exe" >> $env:GITHUB_ENV
           "PAPERLEAF_TEST_DESKTOP=$install\Paperleaf.exe" >> $env:GITHUB_ENV
-          Write-Output "PASS: released EXE upgraded 1.4.2 to $installedVersion and preserved profile data."
+          Write-Output "PASS: released EXE upgraded 1.4.3 to $installedVersion and preserved profile data."
       - name: Create a real thread with the installed Codex binary
         run: node scripts/check-codex-protocol.mjs
       - name: Desktop process starts

@@ -8,13 +8,24 @@
 
 Paperleaf brings PDF reading, bilingual translation, research notes, vocabulary, and GPT conversations into one workspace. Your account stores your library in the cloud. The Windows client bundles Codex and uses official account authorization for model requests.
 
-[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.3/Paperleaf-Setup-1.4.3-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
+[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.4/Paperleaf-Setup-1.4.4-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
 
 | Current version | Desktop platform | Interface | Status |
 | --- | --- | --- | --- |
-| **1.4.3** | Windows 10 / 11 · x64 | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
+| **1.4.4** | Windows 10 / 11 · x64 | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
 
 The application interface is primarily Chinese. Paperleaf is an independent application, not an official OpenAI product. Model access and usage limits depend on the signed-in Codex account.
+
+## 1.4.4 · Focus reading
+
+Click **Focus reading** (专注阅读), or press **F8**, to hide the title, navigation, annotation tools, outline and footer. The PDF fills the left pane while notes, translation and GPT remain available on the right.
+
+- Restore controls with the floating **Show toolbar** button, F8, or Escape while the PDF is focused.
+- Keep the reading position, sidebar width and note draft. The mode is remembered on this device.
+- Text selection remains active; Ctrl + wheel zoom, Space-drag, selection translation and Shift buffering still work.
+- The Windows menu bar hides with the reading controls; Alt reveals it temporarily. The public site remains an installer and release guide.
+
+See the [1.4.4 release and verification notes](docs/releases/v1.4.4.md).
 
 ## 1.4.3 · Selection buffering and adjustable workspace
 
@@ -93,7 +104,7 @@ No separate Node.js or command-line setup is required. There are no official mac
 
 ### First launch on Windows
 
-1. Download [Paperleaf-Setup-1.4.3-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.3/Paperleaf-Setup-1.4.3-Windows-x64.exe) and run the installer. It is approximately **200.7 MiB**; no ZIP extraction is needed.
+1. Download [Paperleaf-Setup-1.4.4-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.4/Paperleaf-Setup-1.4.4-Windows-x64.exe) and run the installer. It is approximately **200.8 MiB**; no ZIP extraction is needed.
 2. Open Paperleaf, verify your website identity through ChatGPT, then register or sign in to Paperleaf. Use an independent Paperleaf password and keep the recovery code, which is displayed only once.
 3. Open the Codex connection panel and choose “使用 ChatGPT 登录”. Complete official authorization in the system browser, then return to the reader.
 4. Run “测试 GPT” to verify a real reply. This uses a small amount of account quota and reports first output, total duration, and retries.
@@ -321,6 +332,7 @@ Use an already-authorized Codex profile that you are entitled to access. Where s
 
 | Version | Highlights |
 | --- | --- |
+| [1.4.4](docs/releases/v1.4.4.md) | Focus reading, hide and restore controls, retain reading position |
 | [1.4.3](docs/releases/v1.4.3.md) | Shift buffering, selection translation, adjustable toolbars, streaming scroll, desktop-first releases |
 | [1.4.2](docs/releases/v1.4.2.md) | PDF panning/zoom, pen/text annotations, spacious notes, contextual follow-ups, body-first translation |
 | [1.4.1](docs/releases/v1.4.1.md) | Archive-inspired UI, HTTP streaming compatibility, real retry classification, connection timings |

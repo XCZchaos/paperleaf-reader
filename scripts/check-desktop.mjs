@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {runInNewContext} from 'node:vm';
 import {EventEmitter} from 'node:events';
 import {PassThrough,Writable} from 'node:stream';
 import {mkdtemp,rm,readFile} from 'node:fs/promises';
@@ -27,6 +28,15 @@ try{
  account={id:'fixture-owner-two'};await runtime.request('/status');assert.equal(calls.length,2);assert.notEqual(calls[0].profile,calls[1].profile);assert(calls[0].child.closed);
  account=null;await assert.rejects(runtime.request('/status'),/Paperleaf/);assert(calls[1].child.closed);assert.equal(runtime.bridge,null);
  account={id:'fixture-owner-two'};await runtime.request('/status');assert.equal(calls.length,3);await runtime.disconnect();assert(calls[2].child.closed);
+ const preload=await readFile('desktop/preload.cjs','utf8');
+ let bridge,invocations=[];const renderer=new EventEmitter();renderer.invoke=async(...args)=>{invocations.push(args)};
+ const expose=(_name,value)=>{bridge=value};
+ runInNewContext(preload,{require:()=>({contextBridge:{exposeInMainWorld:expose},ipcRenderer:renderer}),location:{origin:'https://untrusted.example'}});assert.equal(bridge,undefined,'Never expose desktop IPC on another origin');
+ runInNewContext(preload,{require:()=>({contextBridge:{exposeInMainWorld:expose},ipcRenderer:renderer}),location:{origin:'https://paperleaf-xcz-reader.shamboo2003.chatgpt.site'}});
+ await bridge.setReaderFocus(true);await bridge.setReaderFocus(false);assert.deepEqual(invocations,[['paperleaf:reader-focus',true],['paperleaf:reader-focus',false]]);
+ let toggles=0;const stop=bridge.onReaderFocusToggle((...args)=>{assert.equal(args.length,0,'Do not expose Electron event objects');toggles++});
+ renderer.emit('paperleaf:toggle-reader-focus',{sender:'private'});assert.equal(toggles,1);stop();renderer.emit('paperleaf:toggle-reader-focus');assert.equal(toggles,1);assert.equal(renderer.listenerCount('paperleaf:toggle-reader-focus'),0,'Reader unmount cleans up native listener');
+ console.log('PASS: focus-mode preload origin gate, narrow IPC, isolated callbacks and listener cleanup.');
  const packageRoot=path.join(process.cwd(),'work/desktop/release/Paperleaf-win32-x64');
  for(const file of ['Paperleaf.exe','resources/codex/bin/codex.exe']){const data=await readFile(path.join(packageRoot,file));assert.equal(data.subarray(0,2).toString(),'MZ');const offset=data.readUInt32LE(0x3c);assert.equal(data.subarray(offset,offset+4).toString(),'PE\0\0');assert.equal(data.readUInt16LE(offset+4),0x8664);}
  for(const file of ['desktop/main.mjs','desktop/runtime.mjs','desktop/updater.mjs','desktop/preload.cjs','companion/server.mjs','companion/rpc.mjs','companion/research.mjs','companion/progress.mjs','companion/transport.mjs','desktop/assets/paperleaf.ico'])assert.deepEqual(asar.extractFile(path.join(packageRoot,'resources/app.asar'),file),await readFile(file),file+' differs from source');

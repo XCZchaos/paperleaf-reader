@@ -8,13 +8,24 @@
 
 Paperleaf 将文献管理、PDF 阅读、中英对照、研究笔记、单词积累和 GPT 问答放在同一张工作台上。资料由账号云端保存，Windows 桌面版内置 Codex，通过官方账号授权调用 GPT，帮助你从日常精读走到组会汇报。
 
-[桌面版下载与说明](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [下载 Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.3/Paperleaf-Setup-1.4.3-Windows-x64.exe) · [最新发行版](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [English](README.en.md)
+[桌面版下载与说明](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [下载 Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.4/Paperleaf-Setup-1.4.4-Windows-x64.exe) · [最新发行版](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [English](README.en.md)
 
 | 当前版本 | 桌面平台 | 界面 | 项目状态 |
 | --- | --- | --- | --- |
-| **1.4.3** | Windows 10 / 11 · x64 | shadcn/ui · 复古纸页 · 夜读主题 | 公开源码，持续迭代；桌面预览版 |
+| **1.4.4** | Windows 10 / 11 · x64 | shadcn/ui · 复古纸页 · 夜读主题 | 公开源码，持续迭代；桌面预览版 |
 
 Paperleaf 是独立开发的应用，并非 OpenAI 官方产品。模型访问与额度取决于你已登录的 Codex 账号。
+
+## 1.4.4 · 专注阅读
+
+点击阅读工具栏的 **专注阅读**，或按 **F8**，收起标题、翻页缩放、批注、目录与底栏，让 PDF 占满左侧阅读区。右侧笔记、翻译和 GPT 助手继续保留。
+
+- 通过右上角悬浮 **显示工具栏**、F8 或在阅读区按 Esc 恢复。
+- 切换时保持正在阅读的位置、侧栏宽度和笔记草稿；当前设备会记住专注模式。
+- 专注时自动使用文字选择，避免隐藏画笔误触；Ctrl + 滚轮缩放、空格拖动、划词翻译和 Shift 暂存继续可用。
+- Windows 桌面菜单栏同步收起，按 Alt 可临时显示；视图菜单增加专注阅读入口。网站继续只提供桌面安装包与说明。
+
+详见 [1.4.4 发行说明与验证](docs/releases/v1.4.4.md)。
 
 ## 1.4.3 · 划选即译、暂存与灵活布局
 
@@ -56,7 +67,7 @@ Paperleaf 是独立开发的应用，并非 OpenAI 官方产品。模型访问�
 | --- | --- | --- |
 | 文献库 | 批量导入 PDF、重复文件检测、主题分类、标签、收藏、阅读状态、列表 / 卡片视图 | 普通导入不需要 |
 | 智能整理 | 从前 3 页识别标题、作者、年份、期刊 / 会议、DOI、摘要与关键词；生成文件名，保留原文件名，支持校正与重新识别 | 需要 |
-| PDF 阅读器 | 竖向连续滚动 / 横向翻页、目录、搜索、缩放、跳页、文字选择、高亮、摘录、进度恢复 | 不需要 |
+| PDF 阅读器 | 专注阅读、竖向连续滚动 / 横向翻页、目录、搜索、缩放、跳页、文字选择、高亮、摘录、进度恢复 | 不需要 |
 | 翻译 | 划选即译、Shift 暂存、全文逐段中英对照、暂停继续、失败重试 | 生成译文时需要 |
 | 研究笔记 | Markdown 编辑与排版、来源页定位、双语笔记、草稿保存与导出 | 手写笔记不需要 |
 | 单词本 | GPT 判断单词并整理释义、词性、语境、例句、相关词；主动收录、去重、掌握标记、搜索与导出 | 识别与生成释义时需要 |
@@ -93,7 +104,7 @@ Paperleaf 是独立开发的应用，并非 OpenAI 官方产品。模型访问�
 
 ### Windows 首次使用
 
-1. 下载 [Paperleaf-Setup-1.4.3-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.3/Paperleaf-Setup-1.4.3-Windows-x64.exe)，双击安装。安装包约 **200.7 MiB**，无需解压 ZIP。
+1. 下载 [Paperleaf-Setup-1.4.4-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.4/Paperleaf-Setup-1.4.4-Windows-x64.exe)，双击安装。安装包约 **200.8 MiB**，无需解压 ZIP。
 2. 打开 Paperleaf，先通过 ChatGPT 验证网站访问身份，再注册或登录 Paperleaf 账号。为 Paperleaf 设置独立密码，并保存只显示一次的恢复码。
 3. 打开“连接 Codex”，点击“使用 ChatGPT 登录”，在系统浏览器完成官方授权，返回阅读器。
 4. 点击“测试 GPT”，确认能够收到真实回复；此操作会消耗少量账号额度，并显示首次输出耗时、总耗时和重试次数。
@@ -323,6 +334,7 @@ node scripts/check-vocabulary-live.mjs --profile /absolute/path/to/already-signe
 
 | 版本 | 重点 |
 | --- | --- |
+| [1.4.4](docs/releases/v1.4.4.md) | 专注阅读、工具栏收起与恢复、保留阅读位置 |
 | [1.4.3](docs/releases/v1.4.3.md) | Shift 暂存、自动划译、可拉伸工具栏、流式滚动、桌面版优先发布 |
 | [1.4.2](docs/releases/v1.4.2.md) | PDF 拖动缩放、画笔与文本框、宽松笔记排版、笔记/译文追问、正文优先翻译 |
 | [1.4.1](docs/releases/v1.4.1.md) | 复古界面、HTTP 流式兼容连接、真实重试分类、连接测速 |
