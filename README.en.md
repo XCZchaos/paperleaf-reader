@@ -346,6 +346,7 @@ Use an already-authorized Codex profile that you are entitled to access. Where s
 
 | Version | Highlights |
 | --- | --- |
+| [1.5.1](docs/releases/v1.5.1.md) | Natural paragraphs, equation context and per-request Codex activity |
 | [1.5.0](docs/releases/v1.5.0.md) | Argument-study HTML, offline export, Windows EXE and native macOS DMGs |
 | [1.4.4](docs/releases/v1.4.4.md) | Focus reading, hide and restore controls, retain reading position |
 | [1.4.3](docs/releases/v1.4.3.md) | Shift buffering, selection translation, adjustable toolbars, streaming scroll, desktop-first releases |

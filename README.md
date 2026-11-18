@@ -354,6 +354,7 @@ node scripts/check-vocabulary-live.mjs --profile /absolute/path/to/already-signe
 
 | 版本 | 重点 |
 | --- | --- |
+| [1.5.1](docs/releases/v1.5.1.md) | 自然段与跨页公式、按请求回看的 Codex 执行记录 |
 | [1.5.0](docs/releases/v1.5.0.md) | 独立论证精读、离线 HTML、Windows EXE 与双架构 macOS DMG |
 | [1.4.4](docs/releases/v1.4.4.md) | 专注阅读、工具栏收起与恢复、保留阅读位置 |
 | [1.4.3](docs/releases/v1.4.3.md) | Shift 暂存、自动划译、可拉伸工具栏、流式滚动、桌面版优先发布 |
