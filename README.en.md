@@ -114,7 +114,7 @@ No separate Node.js or command-line setup is required. There are no official mac
 
 ### First launch on Windows
 
-1. Download [Paperleaf-Setup-1.5.0-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-Setup-1.5.0-Windows-x64.exe) and run the installer. It is approximately **200.8 MiB**; no ZIP extraction is needed.
+1. Download [Paperleaf-Setup-1.5.0-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-Setup-1.5.0-Windows-x64.exe) and run the installer. It is approximately **200.7 MiB**; no ZIP extraction is needed.
 2. Open Paperleaf, verify your website identity through ChatGPT, then register or sign in to Paperleaf. Use an independent Paperleaf password and keep the recovery code, which is displayed only once.
 3. Open the Codex connection panel and choose “使用 ChatGPT 登录”. Complete official authorization in the system browser, then return to the reader.
 4. Run “测试 GPT” to verify a real reply. This uses a small amount of account quota and reports first output, total duration, and retries.

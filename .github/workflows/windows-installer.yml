@@ -14,6 +14,8 @@ jobs:
   install-and-start-codex:
     runs-on: windows-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -25,6 +27,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Publish the pinned EXE if this release has no Windows asset yet
+        shell: pwsh
+        run: |
+          $release = Get-Content desktop/release.json | ConvertFrom-Json
+          $name = "Paperleaf-Setup-$($release.version)-Windows-x64.exe"
+          $assets = gh release view $env:RELEASE_TAG --json assets --jq '.assets[].name'
+          if ($LASTEXITCODE -ne 0) { throw 'Release asset inventory failed' }
+          if ($assets -notcontains $name) {
+            node scripts/fetch-release-installer.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'Pinned installer download failed' }
+            gh release upload $env:RELEASE_TAG "work/installer/$name"
+            if ($LASTEXITCODE -ne 0) { throw 'EXE publication failed' }
+            Remove-Item "work/installer/$name"
+          }
       - name: Prepare previous version and synthetic retained data
         shell: pwsh
         run: |

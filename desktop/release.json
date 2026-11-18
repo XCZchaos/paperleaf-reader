@@ -1,16 +1,17 @@
 {
-  "version": "1.4.4",
+  "version": "1.5.0",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
-  "sizeMB": 200.8,
-  "sha256": "f3f7b21a607dce4717d0bbe8e1daf3f023d11a6378ede19aed10181c7b3bf5c7",
-  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.4/Paperleaf-Setup-1.4.4-Windows-x64.exe",
-  "date": "2026-11-06",
+  "sizeMB": 200.7,
+  "sha256": "a183a5d218d1a43cf073f58831187d6a702bb1a305de287f499e08cca96cb5ee",
+  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-Setup-1.5.0-Windows-x64.exe",
+  "date": "2026-11-18",
   "notes": [
-    "新增专注阅读：F8 或点击按钮隐藏标题、目录、翻页缩放、批注栏和底栏，让 PDF 占满左侧阅读区。",
-    "右侧笔记、翻译和 GPT 助手保持可用，未保存笔记与 Shift 暂存状态保留。",
-    "悬浮「显示工具栏」、F8 或在阅读区按 Esc 恢复；切换保留阅读位置和侧栏尺寸，记住当前设备的模式。",
-    "Windows 菜单栏同步收起；Alt 临时显示，视图菜单也可切换专注阅读。",
-    "发布 1.4.4 Windows EXE 安装包，支持应用内检查更新；网站继续提供桌面下载和说明。"
+    "新增独立「论文论证精读」：英文原文五色高亮、逐段中文意译、逻辑批注与全文论证总览。",
+    "生成后点击「打开 HTML」直接在应用内阅读；导出单个 HTML 内嵌 Lora / IBM Plex Sans 字体，支持离线阅读。",
+    "精读按批次自动保存本机，可暂停续做；主动保存到云端，跨设备覆盖前检查版本冲突。",
+    "原文与高亮位置逐一核对，缺失段落不标为完成；支持可选课程信息、章节跳转和移动端单栏。",
+    "新增 Apple 芯片与 Intel 两种 macOS DMG；原生 macOS 环境构建和验证，支持版本检查与更新说明。",
+    "发布 Windows EXE，保留登录与云端资料；macOS 采用 ad-hoc 签名，尚未完成 Apple 公证。"
   ]
 }
