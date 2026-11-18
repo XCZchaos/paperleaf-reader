@@ -14,6 +14,17 @@ function storeSummary(job,id,parts){let remaining=Math.max(0,MAX_SUMMARY-[...job
 export function setStage(job,stage){if(job.stage!==stage)progressEvent(job,'stage-'+stage,'stage',titles[stage]||stage);job.stage=stage;job.updated=Date.now();}
 export function readingProgress(job,method,p){
  if(method==='item/agentMessage/delta'||method==='item/reasoning/summaryTextDelta'||method==='item/completed')job.retrying=false;
+ if(job.kind==='argument'){
+  if(method==='turn/started')progressEvent(job,'turn','stage','Codex 已开始本轮请求');
+  if(method==='item/started'&&p.item?.type==='userMessage')progressEvent(job,'input','stage','Codex 已接收本批材料');
+  if(method==='item/started'&&p.item?.type==='reasoning')progressEvent(job,'analysis-'+p.item.id,'stage','Codex 正在分析本批材料','',false);
+  if(method==='item/completed'&&p.item?.type==='reasoning')progressEvent(job,'analysis-'+p.item.id,'stage','Codex 已结束本次分析');
+  if(method==='thread/tokenUsage/updated'){
+   const u=p.tokenUsage?.last;
+   if(u&&Number.isSafeInteger(u.inputTokens)&&u.inputTokens>=0&&Number.isSafeInteger(u.outputTokens)&&u.outputTokens>=0)
+    progressEvent(job,'usage','stage','Codex 报告本轮用量',`输入 ${u.inputTokens.toLocaleString()} · 输出 ${u.outputTokens.toLocaleString()} tokens`);
+  }
+ }
  if(method==='turn/started')setStage(job,'thinking');
  if(method==='item/started'&&p.item?.type==='reasoning')setStage(job,'thinking');
  // Consume only public summaries. Never consume reasoning/textDelta or content.

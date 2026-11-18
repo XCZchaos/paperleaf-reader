@@ -1,5 +1,5 @@
 export type ReadingContext={kind:'note'|'draft'|'translation'|'paragraph';id:string;page:number;original:string;content:string;excerpted?:boolean};
-export type PageText={page:number;text:string;paragraphs?:string[];bodyParagraphs?:string[];bodyExcluded?:number;bodyReason?:string};
+export type PageText={page:number;text:string;paragraphs?:string[];bodyParagraphs?:string[];argumentBodyBlocks?:{text:string;x:number;y:number;bottom:number;height:number}[];argumentAllBlocks?:{text:string;x:number;y:number;bottom:number;height:number}[];bodyExcluded?:number;bodyReason?:string};
 export type Deck={title:string;subtitle:string;slides:{title:string;bullets:string[];speakerNotes:string;pages:number[]}[]};
 export type PaperMetadata={title:string;authors:string;year:string;journal:string;doi:string;abstract:string;keywords:string[]};
 export type ResearchKind='translate'|'ask'|'summary'|'slides';

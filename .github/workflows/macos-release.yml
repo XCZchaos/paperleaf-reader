@@ -35,6 +35,10 @@ jobs:
           node-version: '24'
       - name: Install pinned packaging tools
         run: npm install --prefix work/mac-tooling --ignore-scripts --no-audit --no-fund @electron/packager@20.3.0
+      - name: Verify paragraph grouping and public Codex events
+        run: |
+          node scripts/check-argument-paragraphs.mjs
+          node scripts/check-argument.mjs
       - name: Confirm native architecture
         env:
           EXPECTED_ARCH: ${{ matrix.arch }}

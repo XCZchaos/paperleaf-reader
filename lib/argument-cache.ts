@@ -13,3 +13,12 @@ async function operation<T>(key:string,mode:IDBTransactionMode,act:(store:IDBObj
 }
 export function readArgumentCache(accountId:string,paperId:string){return operation<ArgumentStudy|undefined>(accountId+':'+paperId,'readonly',store=>store.get(accountId+':'+paperId));}
 export function writeArgumentCache(accountId:string,study:ArgumentStudy){return operation<IDBValidKey>(accountId+':'+study.paperId,'readwrite',store=>store.put(study,accountId+':'+study.paperId));}
+
+export function readArgumentHistory(accountId:string,paperId:string){
+ const key=accountId+':'+paperId+':execution';
+ return operation<import('./argument-activity').ArgumentHistory|undefined>(key,'readonly',store=>store.get(key));
+}
+export function writeArgumentHistory(accountId:string,paperId:string,history:import('./argument-activity').ArgumentHistory){
+ const key=accountId+':'+paperId+':execution';
+ return operation<IDBValidKey>(key,'readwrite',store=>store.put(history,key));
+}

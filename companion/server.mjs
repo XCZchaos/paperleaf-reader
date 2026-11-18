@@ -23,6 +23,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
   function finish(j,status,error='') {
     if(!active(j))return;
     j.status=status;j.error=error;j.completedAt=Date.now();setStage(j,status);clearTimeout(j.timer);
+    if(j.kind==='argument'&&error)progressEvent(j,'terminal','stage',status==='cancelled'?'本轮精读已停止':'本轮精读失败',error);
     if(j.threadId)rpc.request('thread/unsubscribe',{threadId:j.threadId}).catch(()=>{});
   }
   async function cancel(j) {
@@ -43,13 +44,14 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
       if(method==='item/agentMessage/delta'){
         if(p.delta&&!j.firstResponseAt)j.firstResponseAt=Date.now();
         const old=j.items.get(p.itemId)||{text:'',phase:null};old.text+=p.delta;j.items.set(p.itemId,old);
-        if(old.phase==='commentary'){j.activity=old.text.slice(-600);progressEvent(j,'commentary-'+p.itemId,'commentary','阅读进展',old.text,false);}else{j.text=old.text.slice(0,100000);setStage(j,'writing');}
+        if(old.phase==='commentary'){j.activity=old.text.slice(-600);progressEvent(j,'commentary-'+p.itemId,'commentary','阅读进展',old.text,false);}else{j.text=old.text.slice(0,100000);setStage(j,'writing');if(j.kind==='argument')progressEvent(j,'output','stage','正在接收结构化结果',`已收到 ${old.text.length.toLocaleString()} 字符`,false);}
         if(old.text.length>100000){void cancel(j);j.error='输出超过长度限制，请缩小阅读范围';}
       }
       if(method==='item/completed'&&p.item.type==='agentMessage'){
         if(p.item.text&&!j.firstResponseAt)j.firstResponseAt=Date.now();
         j.items.set(p.item.id,{text:p.item.text,phase:p.item.phase});
         if(p.item.phase==='commentary'){j.activity=p.item.text.slice(-600);progressEvent(j,'commentary-'+p.item.id,'commentary','阅读进展',p.item.text,true);}else{j.text=p.item.text.slice(0,100000);setStage(j,'writing');}
+        if(j.kind==='argument'&&p.item.phase!=='commentary')progressEvent(j,'output','stage','已接收结构化结果',`共 ${p.item.text.length.toLocaleString()} 字符`);
       }
       if(method==='item/started'&&!['userMessage','agentMessage','reasoning','plan','contextCompaction'].includes(p.item.type)){
         progressEvent(j,'tool-blocked','stage','工具请求已阻止','文献阅读仅处理你提供的文字。');void cancel(j);j.error='阅读任务尝试调用工具，已停止。请重新提问并仅依据原文。';
@@ -63,7 +65,17 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         if(!j.text.trim()){finish(j,'error','Codex 未返回完整正文，请重新尝试');continue;}
         setStage(j,'finalizing');
         try{
-          if(j.kind==='argument'){const value=JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,''));j.argument=j.argumentInput.phase==='paragraphs'?validateArgumentBatch(value,j.argumentInput.paragraphs):validateArgumentOverview(value,j.argumentInput.sources);}
+          if(j.kind==='argument'){
+            const value=JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,''));
+            if(j.argumentInput.phase==='paragraphs'){
+              j.argument=validateArgumentBatch(value,j.argumentInput.paragraphs);
+              const count=j.argument.paragraphs.reduce((n,p)=>n+p.highlights.length,0);
+              progressEvent(j,'verified','stage','Paperleaf 已核对逐段结果',`${j.argument.paragraphs.length} 段译文与批注 · ${count} 处原文高亮匹配 · ${j.argument.skippedHighlights} 处高亮跳过`);
+            }else{
+              j.argument=validateArgumentOverview(value,j.argumentInput.sources);
+              progressEvent(j,'verified','stage','Paperleaf 已核对总览引用',`${Object.keys(j.argument).length} 项论证分析已通过来源校验`);
+            }
+          }
           if(j.detectVocabulary){const parsed=validateWordTranslation(JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'')),j.selection);j.text=parsed.text;j.vocabulary=parsed.vocabulary;}
           if(j.kind==='metadata')j.metadata=validateMetadata(JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'')));
           if(j.kind==='slides'){
@@ -102,6 +114,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
       const selected=r.model?list.find(m=>m.id===r.model):list.find(m=>m.default);
       if(r.effort&&!selected?.reasoningEfforts.some(e=>e.id===r.effort))throw Error('当前模型不支持所选思考强度，请在 Codex 面板重新选择');
       j.effort=r.effort||selected?.defaultEffort||null;
+      if(j.kind==='argument')progressEvent(j,'model','stage','Paperleaf 已核对账号与模型',`${selected?.id||'账号默认模型'} · 思考强度 ${j.effort||'模型默认'}`);
       if(j.cancelled)return;
       const t=await rpc.request('thread/start',{...(r.model?{model:r.model}:{}),cwd:workdir,approvalPolicy:'untrusted',permissions:'paperleaf_reading',ephemeral:true,baseInstructions:instructions,developerInstructions:instructions,serviceName:'paperleaf_reader'});
       j.threadId=t.thread.id;j.model=t.model||r.model||'Codex 默认模型';
@@ -133,7 +146,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         const a=await account();let m=[],warning='';
         if(a){try{m=await models(a)}catch{warning='模型列表暂时不可用，可以使用 Codex 默认模型'}
           await readRates(u.searchParams.get('refresh')==='1');}
-        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,rateLimitsByLimitId:a?ratesById:null,rateLimitsUpdatedAt:a?rateTime:null,rateLimitsWarning:a?rateWarning:'',ordinaryUsageAllowed:a?ordinaryUsageAllowed:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,connection:CONNECTION_INFO,version:'1.5.0'});return;
+        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,rateLimitsByLimitId:a?ratesById:null,rateLimitsUpdatedAt:a?rateTime:null,rateLimitsWarning:a?rateWarning:'',ordinaryUsageAllowed:a?ordinaryUsageAllowed:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,connection:CONNECTION_INFO,version:'1.5.1'});return;
       }
       if(req.method==='POST'&&u.pathname==='/login'){
         if([...jobs.values()].some(active)){send(res,409,{error:'请先停止当前生成任务，再登录其他账号'});return;}

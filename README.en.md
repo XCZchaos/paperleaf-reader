@@ -8,13 +8,17 @@
 
 Paperleaf brings PDF reading, bilingual translation, research notes, vocabulary, and GPT conversations into one workspace. Your account stores your library in the cloud. The Windows client bundles Codex and uses official account authorization for model requests.
 
-[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-Setup-1.5.0-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
+[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.1/Paperleaf-Setup-1.5.1-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
 
 | Current version | Desktop platform | Interface | Status |
 | --- | --- | --- | --- |
-| **1.5.0** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
+| **1.5.1** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
 
 The application interface is primarily Chinese. Paperleaf is an independent application, not an official OpenAI product. Model access and usage limits depend on the signed-in Codex account.
+
+## 1.5.1 · Paragraph integrity and activity history
+
+Argument study keeps equation introductions, labels and explanations with the surrounding paragraph. Continued paragraphs show their page range. Open the activity panel for source ranges, model, public updates, retries and validation for each request. Existing studies can be exported before re-extraction. [Downloads and checks](https://github.com/XCZchaos/paperleaf-reader/releases/tag/v1.5.1)
 
 ## 1.5.0 · Argument study and macOS
 
@@ -114,7 +118,7 @@ No separate Node.js or command-line setup is required. There are no official mac
 
 ### First launch on Windows
 
-1. Download [Paperleaf-Setup-1.5.0-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-Setup-1.5.0-Windows-x64.exe) and run the installer. It is approximately **200.7 MiB**; no ZIP extraction is needed.
+1. Download [Paperleaf-Setup-1.5.1-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.1/Paperleaf-Setup-1.5.1-Windows-x64.exe) and run the installer. It is approximately **200.8 MiB**; no ZIP extraction is needed.
 2. Open Paperleaf, verify your website identity through ChatGPT, then register or sign in to Paperleaf. Use an independent Paperleaf password and keep the recovery code, which is displayed only once.
 3. Open the Codex connection panel and choose “使用 ChatGPT 登录”. Complete official authorization in the system browser, then return to the reader.
 4. Run “测试 GPT” to verify a real reply. This uses a small amount of account quota and reports first output, total duration, and retries.

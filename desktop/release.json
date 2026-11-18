@@ -1,17 +1,15 @@
 {
-  "version": "1.5.0",
+  "version": "1.5.1",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
-  "sizeMB": 200.7,
-  "sha256": "a183a5d218d1a43cf073f58831187d6a702bb1a305de287f499e08cca96cb5ee",
-  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-Setup-1.5.0-Windows-x64.exe",
+  "sizeMB": 200.8,
+  "sha256": "01f4fdc37c604589a2a59ee6980290f4222f6c93e3fcb478a3fb571a2caa178a",
+  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.1/Paperleaf-Setup-1.5.1-Windows-x64.exe",
   "date": "2026-11-18",
   "notes": [
-    "新增独立「论文论证精读」：英文原文五色高亮、逐段中文意译、逻辑批注与全文论证总览。",
-    "生成后点击「打开 HTML」直接在应用内阅读；导出单个 HTML 内嵌 Lora / IBM Plex Sans 字体，支持离线阅读。",
-    "精读按批次自动保存本机，可暂停续做；主动保存到云端，跨设备覆盖前检查版本冲突。",
-    "原文与高亮位置逐一核对，缺失段落不标为完成；支持可选课程信息、章节跳转和移动端单栏。",
-    "新增 Apple 芯片与 Intel 两种 macOS DMG；原生 macOS 环境构建和验证，支持版本检查与更新说明。",
-    "发布 Windows EXE，保留登录与云端资料；macOS 采用 ad-hoc 签名，尚未完成 Apple 公证。"
+    "论文论证精读按自然段对照翻译，保留跨行公式、公式编号及变量说明。",
+    "跨栏、跨页的正文续接后统一翻译和批注，跨页段落显示来源页码范围。",
+    "查看 Codex 进展支持按批次回看来源范围、模型、公开状态、流式接收、重试及最终校验。",
+    "已有精读可继续阅读或导出；按自然段重新提取后，按新版段落生成。"
   ]
 }
