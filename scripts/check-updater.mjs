@@ -22,5 +22,10 @@ try{
  manifest.version='1.2.1';manifest.artifact.chunks[0].path=`/desktop-updates/1.2.1/${sha}.part`;
  updater.fetch=async(url,{signal})=>url.endsWith('.json')?Response.json(manifest):new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(signal.reason),{once:true}));
  await updater.check();const pending=updater.download();await new Promise(resolve=>setTimeout(resolve,30));updater.cancel();assert.equal((await pending).status,'available');
+ let macUrl='';
+ const mac=new DesktopUpdater({version:'1.2.0',site:'https://fixture.invalid',dataDir:directory,platform:'darwin',arch:'arm64',fetch:async()=>Response.json(manifest),openExternal:async url=>{macUrl=url},launch:async()=>{throw Error('Must not execute a Windows installer on macOS')}});
+ assert.equal((await mac.check()).status,'available');assert.equal(mac.snapshot().manualUpdate,true);assert.equal(mac.snapshot().release.size,0);
+ await mac.download();assert.equal(macUrl,'https://github.com/XCZchaos/paperleaf-reader/releases/tag/v1.2.1');assert.equal(mac.snapshot().status,'available');await assert.rejects(mac.install(),/下载/);
+ console.log('PASS: macOS update detection uses release notes and a fixed official release URL; never runs Windows EXE.');
  console.log('PASS: version ordering, manifest boundaries, same-session download, SHA-256, tampering rejection, launch gate, auth failure and cancellation.');
 }finally{await rm(directory,{recursive:true,force:true})}

@@ -26,9 +26,9 @@ export function validateRelease(data){
 // The renderer can only request fixed actions. URLs, paths and executable arguments
 // are owned here; authenticated HTTPS requests use the same Electron session.
 export class DesktopUpdater{
- constructor({version,site,dataDir,fetch,launch,platform=process.platform,arch=process.arch}){
-  Object.assign(this,{version,site,dataDir,fetch,launch,platform,arch});
-  this.state={status:'idle',currentVersion:version,release:null,progress:0,downloaded:0,error:'',checkedAt:null};
+ constructor({version,site,dataDir,fetch,launch,openExternal,platform=process.platform,arch=process.arch}){
+  Object.assign(this,{version,site,dataDir,fetch,launch,openExternal,platform,arch});
+  this.state={status:'idle',currentVersion:version,platform,arch,manualUpdate:platform==='darwin',release:null,progress:0,downloaded:0,error:'',checkedAt:null};
   this.release=null;this.controller=null;this.file=null;
  }
  snapshot(){return structuredClone(this.state)}
@@ -42,12 +42,19 @@ export class DesktopUpdater{
    if(!response.ok||!response.headers.get('content-type')?.includes('json'))throw Error('请先登录云端阅读空间，然后重试检查更新');
    const body=await response.text();if(body.length>100000)throw Error('更新信息过大');
    this.release=validateRelease(JSON.parse(body));
-   return this.set({status:newerVersion(this.release.version,this.version)?'available':'current',release:{version:this.release.version,date:this.release.date,notes:this.release.notes,size:this.release.artifact.size},checkedAt:Date.now(),progress:0,downloaded:0});
+   return this.set({status:newerVersion(this.release.version,this.version)?'available':'current',release:{version:this.release.version,date:this.release.date,notes:this.release.notes,size:this.platform==='darwin'?0:this.release.artifact.size},checkedAt:Date.now(),progress:0,downloaded:0});
   }catch(e){return this.set({status:'error',error:e.message||'检查失败，请检查网络后重试'})}
  }
  async download(){
   if(this.state.status==='downloading'||this.state.status==='ready')return this.snapshot();
   if(!this.release||!newerVersion(this.release.version,this.version))throw Error('请先检查更新');
+  if(this.platform==='darwin'&&['arm64','x64'].includes(this.arch)){
+   if(!this.openExternal)throw Error('请从 GitHub Release 下载 macOS 更新');
+   // macOS updates use the architecture-specific DMG on our fixed release page.
+   // Keep arbitrary renderer URLs and unauthenticated auto-replacement out of IPC.
+   await this.openExternal('https://github.com/XCZchaos/paperleaf-reader/releases/tag/v'+this.release.version);
+   return this.snapshot();
+  }
   if(this.platform!=='win32'||this.arch!=='x64')throw Error('此安装包仅支持 Windows x64');
   const release=this.release,dir=path.join(this.dataDir,'updates');
   const destination=path.join(dir,`Paperleaf-Setup-${release.version}-Windows-x64.exe`),partial=destination+'.partial';

@@ -1,0 +1,72 @@
+name: macOS native installers
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - 'companion/**'
+      - 'scripts/build-macos.mjs'
+      - 'scripts/check-macos.mjs'
+      - 'scripts/check-codex-protocol.mjs'
+      - '.github/workflows/macos-release.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-and-validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install pinned packaging tools
+        run: npm install --prefix work/mac-tooling --ignore-scripts --no-audit --no-fund @electron/packager@20.3.0
+      - name: Confirm native architecture
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: node -e 'if(process.platform!=="darwin" || process.arch!==process.env.EXPECTED_ARCH) process.exit(1)'
+      - name: Build native DMG with matching Codex
+        run: node scripts/build-macos.mjs
+      - name: Mount, install, verify and start native desktop and Codex
+        run: node scripts/check-macos.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Paperleaf-macOS-${{ matrix.arch }}
+          path: |
+            work/mac-${{ matrix.arch }}/*.dmg
+            work/mac-${{ matrix.arch }}/*.sha256
+            work/mac-${{ matrix.arch }}/build.json
+          compression-level: 0
+          retention-days: 14
+  publish:
+    if: github.event_name == 'release'
+    needs: build-and-validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Paperleaf-macOS-*
+          path: installers
+          merge-multiple: false
+      - name: Attach both verified macOS installers to this release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" installers/*/*.dmg installers/*/*.sha256 --clobber
