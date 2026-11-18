@@ -1,0 +1,63 @@
+name: Stage verified installers on a draft
+on:
+  workflow_dispatch:
+    inputs:
+      mac_run_id:
+        description: Successful macOS build run whose native source matches this branch
+        required: true
+        default: '44273681904'
+permissions:
+  contents: write
+  actions: read
+jobs:
+  stage-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      MAC_RUN_ID: ${{ inputs.mac_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Require an existing draft and the exact native source
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "JSON.parse(require('fs').readFileSync('desktop/package.json')).version")
+          echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
+          gh release view "v$version" --json isDraft,tagName > work-release.json
+          node -e 'const d=require("./work-release.json"); const v=require("./desktop/package.json").version; if(d.isDraft!==true || d.tagName!=="v"+v) throw Error("Only an existing draft may receive staged assets")'
+          [[ "$MAC_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$MAC_RUN_ID" > work-run.json
+          node -e 'const r=require("./work-run.json"); if(r.conclusion!=="success" || r.path!==".github/workflows/macos-release.yml") throw Error("A successful native macOS build is required")'
+          source_sha=$(node -p 'require("./work-run.json").head_sha')
+          git diff --exit-code "$source_sha" HEAD -- desktop companion scripts/build-macos.mjs scripts/check-macos.mjs scripts/check-codex-protocol.mjs
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.mac_run_id }}
+          pattern: Paperleaf-macOS-*
+          path: installers
+          merge-multiple: false
+      - name: Verify both Mac installers and fetch the pinned Windows EXE
+        shell: bash
+        run: |
+          set -euo pipefail
+          for arch in arm64 x64; do
+            (cd "installers/Paperleaf-macOS-$arch" && sha256sum -c "Paperleaf-${RELEASE_TAG#v}-macOS-$arch.dmg.sha256")
+          done
+          node scripts/fetch-release-installer.mjs
+      - name: Attach installers to draft without publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Recheck immediately before upload. This workflow never publishes.
+          test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
+          gh release upload "$RELEASE_TAG" work/installer/*.exe installers/*/*.dmg installers/*/*.sha256 --clobber
+          test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
+          gh release view "$RELEASE_TAG" --json isDraft,assets --jq '{draft:.isDraft,files:[.assets[].name]}'
