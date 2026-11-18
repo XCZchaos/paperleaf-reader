@@ -8,13 +8,28 @@
 
 Paperleaf 将文献管理、PDF 阅读、中英对照、研究笔记、单词积累和 GPT 问答放在同一张工作台上。资料由账号云端保存，Windows 桌面版内置 Codex，通过官方账号授权调用 GPT，帮助你从日常精读走到组会汇报。
 
-[桌面版下载与说明](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [下载 Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.4/Paperleaf-Setup-1.4.4-Windows-x64.exe) · [最新发行版](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [English](README.en.md)
+[桌面版下载与说明](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [下载 Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-Setup-1.5.0-Windows-x64.exe) · [最新发行版](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [English](README.en.md)
 
 | 当前版本 | 桌面平台 | 界面 | 项目状态 |
 | --- | --- | --- | --- |
-| **1.4.4** | Windows 10 / 11 · x64 | shadcn/ui · 复古纸页 · 夜读主题 | 公开源码，持续迭代；桌面预览版 |
+| **1.5.0** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · 复古纸页 · 夜读主题 | 公开源码，持续迭代；桌面预览版 |
 
 Paperleaf 是独立开发的应用，并非 OpenAI 官方产品。模型访问与额度取决于你已登录的 Codex 账号。
+
+## 1.5.0 · 论文论证精读与 macOS
+
+新增独立「论文论证精读」工作区：打开 PDF 后点击顶部入口，按正文段落生成英中对照、五色论证高亮、逐段中文批注和全文逻辑总览。课程信息可选；每批完成后保存本机，支持暂停续做，云端保存由用户主动触发。
+
+- **应用内直接打开 HTML**：生成后点击「打开 HTML」，无须先下载。单文件导出包含 Lora / IBM Plex Sans 字体和全部样式，双击可离线阅读；未完成结果明确标为草稿。
+- **原文可核对**：英文始终来自 PDF 提取结果，模型只能标注实际存在的片段；总览引用可跳回对应段落。不识别扫描页与图表，提取范围在生成前可检查。
+- **Windows EXE + 两种 Mac DMG**：[Apple 芯片](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-1.5.0-macOS-arm64.dmg) · [Intel](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-1.5.0-macOS-x64.dmg)。Mac 在各自原生 GitHub runner 构建并验证，拖入「应用程序」即可安装。
+- **Mac 更新**：菜单可检查版本并显示说明，通过官方 Release 下载匹配芯片的 DMG 替换应用。首版为 ad-hoc 签名、未公证，首次运行可能需要在「隐私与安全性」授权打开。
+
+![论文论证精读：英中对照和逐段逻辑批注](docs/images/paperleaf-argument-150.jpg)
+
+*合成测试文献界面，不包含用户论文或真实模型测试结果。*
+
+详见 [1.5.0 发行与验证说明](docs/releases/v1.5.0.md)。
 
 ## 1.4.4 · 专注阅读
 
@@ -72,6 +87,7 @@ Paperleaf 是独立开发的应用，并非 OpenAI 官方产品。模型访问�
 | 研究笔记 | Markdown 编辑与排版、来源页定位、双语笔记、草稿保存与导出 | 手写笔记不需要 |
 | 单词本 | GPT 判断单词并整理释义、词性、语境、例句、相关词；主动收录、去重、掌握标记、搜索与导出 | 识别与生成释义时需要 |
 | 文献问答 | 引用选中文本、指定页码提问、连续追问、多个独立对话、云端历史、原文页码引用 | 生成回答时需要 |
+| 论证精读 HTML | 正文英中对照、五色高亮、段落功能与逻辑批注、全文论证链、应用内预览与离线单文件导出 | 生成时需要 |
 | 精读总结 | 按当前页、页码范围或全文整理问题、方法、实验、贡献与局限 | 需要 |
 | 汇报 PPT | 生成 6 / 8 / 10 / 12 页内容，预览编辑后导出可编辑 PPTX，包含讲稿备注和来源页码 | 生成内容时需要 |
 | 桌面与同步 | 云端资料同步、可拉伸侧栏和工具区、浅色 / 深色主题、版本检查、更新说明、校验后安装 | 不需要 |
@@ -104,7 +120,7 @@ Paperleaf 是独立开发的应用，并非 OpenAI 官方产品。模型访问�
 
 ### Windows 首次使用
 
-1. 下载 [Paperleaf-Setup-1.4.4-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.4/Paperleaf-Setup-1.4.4-Windows-x64.exe)，双击安装。安装包约 **200.8 MiB**，无需解压 ZIP。
+1. 下载 [Paperleaf-Setup-1.5.0-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-Setup-1.5.0-Windows-x64.exe)，双击安装。安装包约 **200.8 MiB**，无需解压 ZIP。
 2. 打开 Paperleaf，先通过 ChatGPT 验证网站访问身份，再注册或登录 Paperleaf 账号。为 Paperleaf 设置独立密码，并保存只显示一次的恢复码。
 3. 打开“连接 Codex”，点击“使用 ChatGPT 登录”，在系统浏览器完成官方授权，返回阅读器。
 4. 点击“测试 GPT”，确认能够收到真实回复；此操作会消耗少量账号额度，并显示首次输出耗时、总耗时和重试次数。
@@ -334,6 +350,7 @@ node scripts/check-vocabulary-live.mjs --profile /absolute/path/to/already-signe
 
 | 版本 | 重点 |
 | --- | --- |
+| [1.5.0](docs/releases/v1.5.0.md) | 独立论证精读、离线 HTML、Windows EXE 与双架构 macOS DMG |
 | [1.4.4](docs/releases/v1.4.4.md) | 专注阅读、工具栏收起与恢复、保留阅读位置 |
 | [1.4.3](docs/releases/v1.4.3.md) | Shift 暂存、自动划译、可拉伸工具栏、流式滚动、桌面版优先发布 |
 | [1.4.2](docs/releases/v1.4.2.md) | PDF 拖动缩放、画笔与文本框、宽松笔记排版、笔记/译文追问、正文优先翻译 |

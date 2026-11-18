@@ -4,6 +4,12 @@ Windows 10/11 x64 安装版。下载 Paperleaf-Setup-1.5.0-Windows-x64.exe，双
 
 升级前关闭旧版 Paperleaf，安装后从新快捷方式启动。原云端文献与本机账号目录继续保留；旧免安装文件夹无需继续使用。可通过 Windows 设置卸载，本机账号目录与云端资料不会随卸载删除。
 
+## macOS 安装
+
+macOS 版本分别提供 Apple 芯片（arm64）和 Intel（x64）DMG。打开对应安装包，将 Paperleaf.app 拖入 Applications；升级前退出旧版，再替换应用。首次运行如被系统拦截，请先核对 GitHub Release 和 SHA-256，再在「系统设置 → 隐私与安全性」中授权打开此应用。当前仅作 ad-hoc 签名，未完成 Apple Developer ID 签名和公证；不要关闭系统全局安全保护。
+
+Mac 端「检查更新」显示版本和更新说明，通过官方 Release 下载相应 DMG 手动替换；本机授权与云端资料保留。
+
 ## 首次使用
 
 1. 连接网络，打开 Paperleaf。网站入口公开，个人资料需登录后访问。新设备先通过 ChatGPT 验证身份，再登录 Paperleaf。
@@ -21,7 +27,7 @@ Windows 10/11 x64 安装版。下载 Paperleaf-Setup-1.5.0-Windows-x64.exe，双
 
 ## 技术与验证范围
 
-Electron 45.2.2 内置运行环境；官方 Codex 0.165.0 随包提供。真实 Codex 账号已通过应用连接程序完成翻译、问答、元信息、总结和 6 页汇报测试；Windows 自动测试覆盖内置 Codex 会话创建与更新安装，交互式 OAuth 和用户网络环境需在实际电脑验证。
+Electron 45.2.2 内置运行环境；官方 Codex 0.165.0 随包提供。历史版本曾完成真实模型翻译、问答等测试。本次 1.5.0 论证精读已用合成文献验证完整数据链、页面与导出；当前开发验证环境的 Codex 状态目录只读，未完成新增任务的真实模型回复测试。Windows 与 macOS 原生安装和内置 Codex 会话测试结果见对应 GitHub Actions。自动测试不包含交互式 OAuth、Apple Gatekeeper 人工授权或真实模型质量评估。
 
 源代码位于配套项目 desktop/、companion/、app/ 与 lib/。Electron、Codex 及 Chromium 相关许可证随程序提供。网站：https://paperleaf-xcz-reader.shamboo2003.chatgpt.site
 

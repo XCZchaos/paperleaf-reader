@@ -4,11 +4,11 @@ import {useEffect,useState} from 'react';
 import {SlidersHorizontal,ChevronDown,Check} from 'lucide-react';
 import {taskModelAdvice} from '@/lib/task-models.mjs';
 import {useCodex} from './codex-provider';
-export type ModelTask='ask'|'summary'|'slides'|'metadata';
+export type ModelTask='ask'|'summary'|'slides'|'metadata'|'argument';
 type Preset={model:string;effort:string};
 export function useTaskModel(task:ModelTask){
  const c=useCodex(),[overrides,setOverrides]=useState<Partial<Record<ModelTask,Preset>>>({});
- useEffect(()=>{const restored:Partial<Record<ModelTask,Preset>>={};for(const key of ['ask','summary','slides','metadata'] as ModelTask[]){try{const p=JSON.parse(localStorage.getItem('paperleaf-task-model-'+key)||'null');if(p&&typeof p.model==='string'&&typeof p.effort==='string')restored[key]=p}catch{}}setOverrides(restored)},[]);
+ useEffect(()=>{const restored:Partial<Record<ModelTask,Preset>>={};for(const key of ['ask','summary','slides','metadata','argument'] as ModelTask[]){try{const p=JSON.parse(localStorage.getItem('paperleaf-task-model-'+key)||'null');if(p&&typeof p.model==='string'&&typeof p.effort==='string')restored[key]=p}catch{}}setOverrides(restored)},[]);
  const preset=overrides[task],selected=c.status?.models.find(m=>m.id===preset?.model),model=selected?.id||c.model,effort=selected?(selected.reasoningEfforts?.some(e=>e.id===preset?.effort)?preset!.effort:''):c.effort;
  function choose(model:string,effort:string){const next={model,effort};setOverrides(v=>({...v,[task]:next}));localStorage.setItem('paperleaf-task-model-'+task,JSON.stringify(next));}
  return{model,effort,custom:!!selected,choose,reset:()=>choose('','')};

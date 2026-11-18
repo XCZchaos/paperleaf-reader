@@ -1,3 +1,4 @@
+import {completedFixture} from './check-argument.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -8,7 +9,8 @@ import ts from 'typescript';
 const root=process.cwd(),sql=new DatabaseSync(':memory:'),session=new AsyncLocalStorage(),files=new Map();
 for(const file of (await fs.readdir('drizzle')).filter(s=>s.endsWith('.sql')).sort())sql.exec(await fs.readFile(path.join('drizzle',file),'utf8'));
 const DB={prepare(query){return{bind(...params){const statement=sql.prepare(query);return{first:async()=>statement.get(...params)||null,all:async()=>({results:statement.all(...params)}),run:async()=>statement.run(...params)}}}},batch:async stmts=>Promise.all(stmts.map(s=>s.run()))};
-const BUCKET={put:async(key,data)=>files.set(key,new Uint8Array(data)),delete:async key=>files.delete(key),get:async key=>{const data=files.get(key);return data?{body:new Response(data).body,size:data.length}:null;}};
+const etags=new Map();let revision=0;
+const BUCKET={put:async(key,data,options={})=>{const existing=etags.get(key);if(options.onlyIf?.etagMatches&&existing!==options.onlyIf.etagMatches||options.onlyIf?.etagDoesNotMatch==='*'&&files.has(key))return null;const bytes=typeof data==='string'?new TextEncoder().encode(data):new Uint8Array(data);files.set(key,bytes);const etag='revision-'+(++revision);etags.set(key,etag);return{etag}},delete:async key=>{etags.delete(key);return files.delete(key)},get:async key=>{const data=files.get(key);return data?{body:new Response(data).body,size:data.length,etag:etags.get(key),json:async()=>JSON.parse(new TextDecoder().decode(data))}:null;}};
 let providerCalls=0;
 const context=vm.createContext({Request,Response,Headers,File,FormData,Blob,TextEncoder,TextDecoder,crypto,URL,AbortSignal,console,Date,fetch:async()=>{providerCalls++;return Response.json({responseStatus:200,responseData:{translatedText:'该方法提高了模型性能。'}})}});
 const cache=new Map();
@@ -20,7 +22,7 @@ async function moduleFor(file){if(cache.has(file))return cache.get(file);let mod
  cache.set(file,mod);await mod.link(async(spec,ref)=>{if(spec==='cloudflare:workers'||spec.startsWith('next/'))return moduleFor(spec);const full=spec.startsWith('@/')?path.join(root,spec.slice(2)):path.resolve(path.dirname(ref.identifier),spec);return moduleFor(path.extname(full)?full:full+'.ts')});await mod.evaluate();return mod;
 }
 const jars=new Map();
-const routes={};for(const [name,file] of Object.entries({account:'app/api/account/route.ts',reading:'app/api/reading-state/route.ts',papers:'app/api/papers/route.ts',paper:'app/api/papers/[id]/route.ts',file:'app/api/papers/[id]/file/route.ts',notes:'app/api/notes/route.ts',collections:'app/api/collections/route.ts',research:'app/api/research/route.ts',translate:'app/api/translate/route.ts',full:'app/api/full-translation/route.ts',vocabulary:'app/api/vocabulary/route.ts'}))routes[name]=(await moduleFor(path.join(root,file))).namespace;
+const routes={};for(const [name,file] of Object.entries({account:'app/api/account/route.ts',reading:'app/api/reading-state/route.ts',papers:'app/api/papers/route.ts',paper:'app/api/papers/[id]/route.ts',file:'app/api/papers/[id]/file/route.ts',notes:'app/api/notes/route.ts',collections:'app/api/collections/route.ts',research:'app/api/research/route.ts',translate:'app/api/translate/route.ts',full:'app/api/full-translation/route.ts',vocabulary:'app/api/vocabulary/route.ts',argument:'app/api/argument-study/route.ts'}))routes[name]=(await moduleFor(path.join(root,file))).namespace;
 async function call(route,method='GET',{owner='test-owner',device='browser',body,id,query='',origin,cookie}={}){const headers={};if(owner){headers['oai-authenticated-user-id']=owner;headers['oai-authenticated-user-email']=owner+'@test.invalid'}if(origin)headers.origin=origin;const key=owner+':'+device;const stored=cookie??jars.get(key);if(stored)headers.cookie=stored;const request=new Request('https://test.local/api/'+route+query,{method,headers,body:body instanceof FormData?body:body?JSON.stringify(body):undefined});const response=await session.run(request,()=>routes[route][method](request,{params:Promise.resolve({id})}));const updated=response.headers.get('set-cookie');if(updated)jars.set(key,updated.split(';')[0]);return response;}
 async function data(response,status=200){assert.equal(response.status,status,await response.clone().text());return response.json();}
 await data(await call('papers','GET',{owner:null}),401);
@@ -58,6 +60,19 @@ const duplicate=await data(await call('papers','POST',{body:upload()}));assert.e
 const bad=new FormData();bad.append('file',new File(['not actually a pdf'],'bad.pdf'));await data(await call('papers','POST',{body:bad}),400);
 const served=await call('file','GET',{id:p.id});assert.equal(served.status,200);assert.equal(Buffer.compare(Buffer.from(await served.arrayBuffer()),pdf),0);
 assert(served.headers.get('content-disposition').endsWith(encodeURIComponent(p.filename)));
+// Argument artifacts are private, explicit-save, validated and conditionally written.
+const argumentFixture={...completedFixture(),paperId:p.id};
+assert.equal((await data(await call('argument','GET',{query:'?paper='+p.id}))).study,null);
+await data(await call('argument','GET',{owner:null,query:'?paper='+p.id}),401);
+await data(await call('argument','GET',{owner:'another-owner',query:'?paper='+p.id}),404);
+await data(await call('argument','PUT',{owner:'another-owner',body:{study:argumentFixture,etag:null}}),404);
+await data(await call('argument','PUT',{origin:'https://evil.invalid',body:{study:argumentFixture,etag:null}}),403);
+const savedArgument=await data(await call('argument','PUT',{body:{study:argumentFixture,etag:null}}));
+assert.equal((await data(await call('argument','GET',{query:'?paper='+p.id}))).study.sources.length,5);
+await data(await call('argument','PUT',{body:{study:argumentFixture,etag:null}}),409);
+await data(await call('argument','PUT',{body:{study:argumentFixture,etag:'stale'}}),409);
+await data(await call('argument','PUT',{body:{study:{...argumentFixture,batches:[]},etag:savedArgument.etag}}),400);
+const changedArgument=await data(await call('argument','PUT',{body:{study:{...argumentFixture,course:'Updated course'},etag:savedArgument.etag}}));assert.notEqual(changedArgument.etag,savedArgument.etag);
 const renamed=await data(await call('paper','PATCH',{id:p.id,body:{filename:'2026: corrected/name',journal:'Corrected Journal',abstract:'Edited abstract.'}}));assert.equal(renamed.filename,'2026_ corrected_name.pdf');assert.equal(renamed.originalFilename,'guide.pdf');assert.equal(renamed.journal,'Corrected Journal');assert.equal(renamed.abstract,'Edited abstract.');
 const n=await data(await call('notes','POST',{body:{paperId:p.id,text:'A verified research note',quote:'An excerpt',rects:[[.1,.2,.3,.05]],page:2,color:'green'}}));assert.equal(n.page,2);
 const list=await data(await call('papers'));assert.equal(list[0].noteCount,1);
@@ -194,6 +209,8 @@ const recoveredSession=jars.get('test-owner:desktop');await data(await call('acc
 await data(await call('papers','GET',{cookie:recoveredSession}),401);
 await data(await call('account','POST',{body:{action:'login',username:'reader.one',password}}));
 sql.prepare('UPDATE account_sessions SET expires=0 WHERE owner=?').run('test-owner');await data(await call('papers'),401);
+assert(!files.has('test-owner/'+p.id+'.argument.json'),'paper deletion removes saved argument HTML data');
+console.log('PASS: argument study auth/owner isolation, source validation, cloud restore, conditional-write conflicts and deletion cleanup.');
 console.log('PASS: password registration/login, secure session cookies, pre-account data preservation, recovery rotation, failed-login throttling, multi-device sessions and revocation, session owner isolation, cloud draft/translation sync and deletion cascade.');
 console.log('PASS: PDF upload/download, metadata and filename preservation, duplicates, reading progress, note CRUD, research persistence, and PPT citation validation.');
 console.log('In-memory SQLite and real WebCrypto tests; no real user account or GPT quota was used.');

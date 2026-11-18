@@ -8,13 +8,23 @@
 
 Paperleaf brings PDF reading, bilingual translation, research notes, vocabulary, and GPT conversations into one workspace. Your account stores your library in the cloud. The Windows client bundles Codex and uses official account authorization for model requests.
 
-[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.4/Paperleaf-Setup-1.4.4-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
+[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-Setup-1.5.0-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
 
 | Current version | Desktop platform | Interface | Status |
 | --- | --- | --- | --- |
-| **1.4.4** | Windows 10 / 11 · x64 | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
+| **1.5.0** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
 
 The application interface is primarily Chinese. Paperleaf is an independent application, not an official OpenAI product. Model access and usage limits depend on the signed-in Codex account.
+
+## 1.5.0 · Argument study and macOS
+
+Open a PDF and select **论证精读** to generate paragraph-aligned English/Chinese reading, five argument highlight categories, Chinese rhetorical annotations, and an overall argument map. The optional course field appears in the export header. Completed batches checkpoint locally; cloud saving is explicit and detects conflicting updates.
+
+Use **打开 HTML** to read inside the desktop app. Export produces one offline HTML file with embedded Lora / IBM Plex Sans fonts and styles. Incomplete work is clearly marked as a draft. Original text and highlight locations are validated against the extracted PDF; scans and figures are not OCRed.
+
+Windows ships as an EXE. macOS ships separate Apple Silicon and Intel DMGs, built and tested on native runners. Mac packages are ad-hoc signed, not Developer ID signed or notarized; macOS may require approval in Privacy & Security. Mac update checks show release notes and open the official release for manual DMG replacement.
+
+See [1.5.0 release and validation notes](docs/releases/v1.5.0.md) for test boundaries, especially the real-model validation limitation.
 
 ## 1.4.4 · Focus reading
 
@@ -104,7 +114,7 @@ No separate Node.js or command-line setup is required. There are no official mac
 
 ### First launch on Windows
 
-1. Download [Paperleaf-Setup-1.4.4-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.4.4/Paperleaf-Setup-1.4.4-Windows-x64.exe) and run the installer. It is approximately **200.8 MiB**; no ZIP extraction is needed.
+1. Download [Paperleaf-Setup-1.5.0-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.0/Paperleaf-Setup-1.5.0-Windows-x64.exe) and run the installer. It is approximately **200.8 MiB**; no ZIP extraction is needed.
 2. Open Paperleaf, verify your website identity through ChatGPT, then register or sign in to Paperleaf. Use an independent Paperleaf password and keep the recovery code, which is displayed only once.
 3. Open the Codex connection panel and choose “使用 ChatGPT 登录”. Complete official authorization in the system browser, then return to the reader.
 4. Run “测试 GPT” to verify a real reply. This uses a small amount of account quota and reports first output, total duration, and retries.
@@ -332,6 +342,7 @@ Use an already-authorized Codex profile that you are entitled to access. Where s
 
 | Version | Highlights |
 | --- | --- |
+| [1.5.0](docs/releases/v1.5.0.md) | Argument-study HTML, offline export, Windows EXE and native macOS DMGs |
 | [1.4.4](docs/releases/v1.4.4.md) | Focus reading, hide and restore controls, retain reading position |
 | [1.4.3](docs/releases/v1.4.3.md) | Shift buffering, selection translation, adjustable toolbars, streaming scroll, desktop-first releases |
 | [1.4.2](docs/releases/v1.4.2.md) | PDF panning/zoom, pen/text annotations, spacious notes, contextual follow-ups, body-first translation |

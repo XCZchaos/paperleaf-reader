@@ -39,7 +39,7 @@ try{
  console.log('PASS: focus-mode preload origin gate, narrow IPC, isolated callbacks and listener cleanup.');
  const packageRoot=path.join(process.cwd(),'work/desktop/release/Paperleaf-win32-x64');
  for(const file of ['Paperleaf.exe','resources/codex/bin/codex.exe']){const data=await readFile(path.join(packageRoot,file));assert.equal(data.subarray(0,2).toString(),'MZ');const offset=data.readUInt32LE(0x3c);assert.equal(data.subarray(offset,offset+4).toString(),'PE\0\0');assert.equal(data.readUInt16LE(offset+4),0x8664);}
- for(const file of ['desktop/main.mjs','desktop/runtime.mjs','desktop/updater.mjs','desktop/preload.cjs','companion/server.mjs','companion/rpc.mjs','companion/research.mjs','companion/progress.mjs','companion/transport.mjs','desktop/assets/paperleaf.ico'])assert.deepEqual(asar.extractFile(path.join(packageRoot,'resources/app.asar'),file),await readFile(file),file+' differs from source');
+ for(const file of ['desktop/main.mjs','desktop/runtime.mjs','desktop/updater.mjs','desktop/preload.cjs','companion/server.mjs','companion/rpc.mjs','companion/research.mjs','companion/argument.mjs','companion/progress.mjs','companion/transport.mjs','desktop/assets/paperleaf.ico'])assert.deepEqual(asar.extractFile(path.join(packageRoot,'resources/app.asar'),file),await readFile(file),file+' differs from source');
  const {version}=JSON.parse(await readFile('desktop/package.json','utf8'));
  for(const file of ['package.json','desktop/package.json'])assert.equal(JSON.parse(asar.extractFile(path.join(packageRoot,'resources/app.asar'),file).toString()).version,version,'Packaged version mismatch: '+file);
  assert.equal(JSON.parse(await readFile('companion/package.json','utf8')).version,version,'Companion version mismatch');
