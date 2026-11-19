@@ -74,7 +74,14 @@ jobs:
           # Recheck immediately before upload. This workflow never publishes.
           test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
           existing=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
-          for file in work/installer/*.exe installers/*/*.dmg installers/*/Paperleaf-*.pkg installers/*/*.sha256; do
+          version=${RELEASE_TAG#v}
+          files=("work/installer/Paperleaf-Setup-$version-Windows-x64.exe")
+          for arch in arm64 x64; do
+            base="installers/Paperleaf-macOS-$arch/Paperleaf-$version-macOS-$arch"
+            files+=("$base.dmg" "$base.dmg.sha256" "$base.pkg" "$base.pkg.sha256")
+          done
+          for file in "${files[@]}"; do
+            test -s "$file"
             if ! grep -Fxq "$(basename "$file")" <<< "$existing"; then
               gh release upload "$RELEASE_TAG" "$file"
             fi

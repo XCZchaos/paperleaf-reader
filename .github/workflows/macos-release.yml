@@ -40,9 +40,12 @@ jobs:
           node scripts/check-argument-paragraphs.mjs
           node scripts/check-argument.mjs
       - name: Confirm native architecture
+        id: native
         env:
           EXPECTED_ARCH: ${{ matrix.arch }}
-        run: node -e 'if(process.platform!=="darwin" || process.arch!==process.env.EXPECTED_ARCH) process.exit(1)'
+        run: |
+          node -e 'if(process.platform!=="darwin" || process.arch!==process.env.EXPECTED_ARCH) process.exit(1)'
+          node -p '"version=" + require("./desktop/package.json").version' >> "$GITHUB_OUTPUT"
       - name: Build native DMG with matching Codex
         run: node scripts/build-macos.mjs
       - name: Mount, install, verify and start native desktop and Codex
@@ -51,9 +54,10 @@ jobs:
         with:
           name: Paperleaf-macOS-${{ matrix.arch }}
           path: |
-            work/mac-${{ matrix.arch }}/*.dmg
-            work/mac-${{ matrix.arch }}/Paperleaf-*.pkg
-            work/mac-${{ matrix.arch }}/*.sha256
+            work/mac-${{ matrix.arch }}/Paperleaf-${{ steps.native.outputs.version }}-macOS-${{ matrix.arch }}.dmg
+            work/mac-${{ matrix.arch }}/Paperleaf-${{ steps.native.outputs.version }}-macOS-${{ matrix.arch }}.dmg.sha256
+            work/mac-${{ matrix.arch }}/Paperleaf-${{ steps.native.outputs.version }}-macOS-${{ matrix.arch }}.pkg
+            work/mac-${{ matrix.arch }}/Paperleaf-${{ steps.native.outputs.version }}-macOS-${{ matrix.arch }}.pkg.sha256
             work/mac-${{ matrix.arch }}/build.json
           compression-level: 0
           retention-days: 14
@@ -77,9 +81,13 @@ jobs:
         run: |
           set -euo pipefail
           existing=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
-          for file in installers/*/*.dmg installers/*/Paperleaf-*.pkg installers/*/*.sha256; do
-            # Keep already-staged, verified release bytes immutable.
-            if ! grep -Fxq "$(basename "$file")" <<< "$existing"; then
-              gh release upload "$RELEASE_TAG" "$file"
-            fi
+          for arch in arm64 x64; do
+            base="installers/Paperleaf-macOS-$arch/Paperleaf-${RELEASE_TAG#v}-macOS-$arch"
+            for file in "$base.dmg" "$base.dmg.sha256" "$base.pkg" "$base.pkg.sha256"; do
+              test -s "$file"
+              # Keep already-staged, verified release bytes immutable.
+              if ! grep -Fxq "$(basename "$file")" <<< "$existing"; then
+                gh release upload "$RELEASE_TAG" "$file"
+              fi
+            done
           done
