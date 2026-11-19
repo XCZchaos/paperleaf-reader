@@ -10,3 +10,5 @@ export function validateArgumentStudy(value:unknown,totalPages?:number):Argument
 export function generateArgumentStudy(options:{study:ArgumentStudy;runTask:typeof runCodexTask;signal:AbortSignal;onChange:(s:ArgumentStudy)=>void|Promise<void>;onProgress:(job:import('./ai-types').CodexJob|null,label:string)=>void;model?:string;effort?:string}):Promise<ArgumentStudy>;
 
 export function inspectArgumentParagraphs(sources:ArgumentSource[]):{id:string;page:number;original:string;reason:string}[];
+
+export function reviewArgumentStudy(options:Parameters<typeof generateArgumentStudy>[0]):Promise<ArgumentStudy>;

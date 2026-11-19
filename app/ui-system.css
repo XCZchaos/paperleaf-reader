@@ -540,3 +540,21 @@ button,input,textarea,select{font-family:inherit}
 .argument-events time{font-size:11px;color:var(--muted-foreground);font-variant-numeric:tabular-nums}
 .argument-summary{border-left:2px solid #899e93;padding-left:10px;margin-top:12px;font-size:13px}
 .argument-activity-body .argument-trace-error{color:#923e31}
+
+/* One scroll container keeps the version, account and Codex controls reachable. */
+.app-shell > .sidebar {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.app-shell > .sidebar > * { flex-shrink: 0; }
+.app-shell > .sidebar .collections { min-height: 0; max-height: none; overflow: visible; }
+.app-shell > .sidebar:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+
+@media (max-width: 760px) {
+  .app-shell > .sidebar:not(.open) { visibility: hidden; }
+  .app-shell > .sidebar.open { visibility: visible; transform: none; }
+}

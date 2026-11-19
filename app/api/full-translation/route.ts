@@ -1,6 +1,10 @@
-import {identity,db,fail,json,body,str} from '@/lib/server';
+import {identity,db,fail,json,str} from '@/lib/server';
+import {argumentBatches} from '@/lib/argument-study.mjs';
+import {validateReview} from '@/lib/argument-segmentation.mjs';
+import type {ArgumentSource} from '@/lib/argument-types';
+const semanticMode=(mode:string)=>mode==='body-ai'||mode==='all-ai';
 function normalize(r:any){return{id:r.id,paperId:r.paper_id,page:r.page,ordinal:r.ordinal,original:r.original,text:r.text,status:r.status,error:r.error,model:r.model,updated:r.updated};}
-function extractionMode(v:unknown){if(v===undefined||v===null)return 'legacy';if(!['legacy','body-v2','all-v2'].includes(String(v)))throw Error('全文识别模式无效');return String(v)}
+function extractionMode(v:unknown){if(v===undefined||v===null)return 'legacy';if(!['legacy','body-v2','all-v2','body-ai','all-ai'].includes(String(v)))throw Error('全文识别模式无效');return String(v)}
 async function owned(owner:string,paper:unknown){const p=await db().prepare('SELECT pages FROM papers WHERE owner=? AND id=?').bind(owner,str(paper)).first();if(!p)throw Error('NOT_FOUND');return p;}
 export async function GET(req:Request){try{
  const owner=await identity(req),params=new URL(req.url).searchParams,paper=params.get('paper'),p=await owned(owner,paper),page=Number(params.get('page')||1),mode=extractionMode(params.get('mode'));
@@ -13,8 +17,34 @@ export async function GET(req:Request){try{
  return json({stats,hasLegacy:!!legacy,preparedPages:prepared.results.map(x=>Number(x.page)),entries:rows.results.map(normalize)});
 }catch(e){return fail(e)}}
 export async function POST(req:Request){try{
- const owner=await identity(req),b=await body(req),p=await owned(owner,b.paperId),paper=b.paperId,mode=extractionMode(b.mode);
- if(b.action==='prepare'){
+ const owner=await identity(req),raw=await req.text();
+ if(raw.length>1200000)throw Error('分段计划过大');
+ const b=JSON.parse(raw),p=await owned(owner,b.paperId),paper=b.paperId,mode=extractionMode(b.mode);
+ if(b.action==='prepareAI'&&semanticMode(mode)){
+  const total=Number(p.pages),checked=validateReview(b.review,total,argumentBatches);
+  if(!checked.complete)throw Error('需要完成全文 AI 分段后再建立翻译队列');
+  const byPage=new Map<number,ArgumentSource[]>();
+  for(const source of checked.sources)byPage.set(source.page,[...(byPage.get(source.page)||[]),source]);
+  const rows=[];
+  let continuedFrom=0,continuedThrough=0;
+  for(let page=1;page<=total;page++){
+   const sources=byPage.get(page)||[];
+   for(const [ordinal,source] of sources.entries()){
+    rows.push({id:crypto.randomUUID(),page,ordinal,original:source.original,reason:''});
+    if(source.endPage){continuedFrom=page;continuedThrough=source.endPage}
+   }
+   if(!sources.length)rows.push({id:crypto.randomUUID(),page,ordinal:0,original:'',reason:page<=continuedThrough?'本页续段已并入第 '+continuedFrom+' 页。':'此页没有可翻译的正文。'});
+  }
+  // Publish the complete first plan in one statement. Concurrent clients may
+  // choose different boundaries; their paragraph rows must never be mixed.
+  await db().prepare(`INSERT INTO translation_paragraphs (id,owner,paper_id,page,ordinal,original,status,error,updated,extraction_mode)
+   SELECT json_extract(value,'$.id'),?,?,json_extract(value,'$.page'),json_extract(value,'$.ordinal'),json_extract(value,'$.original'),
+    CASE WHEN json_extract(value,'$.original')='' THEN 'skipped' ELSE 'queued' END,json_extract(value,'$.reason'),?,?
+   FROM json_each(?) WHERE NOT EXISTS (SELECT 1 FROM translation_paragraphs WHERE owner=? AND paper_id=? AND extraction_mode=?)`).bind(owner,paper,Date.now(),mode,JSON.stringify(rows),owner,paper,mode).run();
+  return json({ok:true});
+ }
+ if(raw.length>150000)throw Error('内容过长');
+ if(b.action==='prepare'&&!semanticMode(mode)){
   if(!Number.isInteger(b.page)||b.page<1||b.page>Number(p.pages)||!Array.isArray(b.paragraphs)||b.paragraphs.length>200||b.paragraphs.some((x:unknown)=>typeof x!=='string'||!x.trim()||x.length>6000)||b.paragraphs.join('').length>120000)throw Error('段落内容或页码无效');
   const paragraphs=b.paragraphs.length?b.paragraphs:[''];
   await db().batch(paragraphs.map((text:string,i:number)=>db().prepare('INSERT INTO translation_paragraphs (id,owner,paper_id,page,ordinal,original,status,error,updated,extraction_mode) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(owner,paper_id,extraction_mode,page,ordinal) DO NOTHING').bind(crypto.randomUUID(),owner,paper,b.page,i,text,text?'queued':'skipped',text?'':str(b.skipReason,250)||'此页未提取到文字；扫描页需先做 OCR。',Date.now(),mode)));
@@ -29,14 +59,21 @@ export async function POST(req:Request){try{
  throw Error('不支持的翻译操作');
 }catch(e){return fail(e)}}
 export async function PATCH(req:Request){try{
- const owner=await identity(req),b=await body(req);await owned(owner,b.paperId);
+ const owner=await identity(req),raw=await req.text();
+ if(raw.length>400000)throw Error('内容过长');
+ const b=JSON.parse(raw),mode=extractionMode(b.mode);await owned(owner,b.paperId);
+ if(!semanticMode(mode)&&raw.length>150000)throw Error('内容过长');
+ if(b.action==='renew'&&semanticMode(mode)){
+  const row=await db().prepare("UPDATE translation_paragraphs SET lease_until=? WHERE id=? AND owner=? AND paper_id=? AND extraction_mode=? AND status='running' AND lease_token=? RETURNING id").bind(Date.now()+600000,str(b.id),owner,b.paperId,mode,str(b.lease)).first();
+  if(!row)throw Error('此段已由其他窗口接管，请刷新译文状态');return json({ok:true});
+ }
  if(b.action==='retry'){
   const suffix=b.id?' AND id=?':'',args=b.id?[owner,b.paperId,extractionMode(b.mode),b.id]:[owner,b.paperId,extractionMode(b.mode)];
   await db().prepare("UPDATE translation_paragraphs SET status='queued',error='',lease_token='',lease_until=0 WHERE owner=? AND paper_id=? AND extraction_mode=? AND status='error'"+suffix).bind(...args).run();return json({ok:true});
  }
  if(!['complete','fail','release'].includes(b.action)||typeof b.lease!=='string'||!b.lease)throw Error('翻译状态无效');
- if(b.action==='complete'&&(typeof b.text!=='string'||!b.text.trim()||b.text.length>24000))throw Error('译文为空或过长');
+ if(b.action==='complete'&&(typeof b.text!=='string'||!b.text.trim()||b.text.length>(semanticMode(mode)?350000:24000)))throw Error('译文为空或过长');
  const status=b.action==='complete'?'done':b.action==='fail'?'error':'queued';
- const row=await db().prepare("UPDATE translation_paragraphs SET status=?,text=?,error=?,model=?,updated=?,lease_token='',lease_until=0 WHERE id=? AND owner=? AND paper_id=? AND status='running' AND lease_token=? RETURNING id").bind(status,b.action==='complete'?b.text:'',b.action==='fail'?str(b.error,1000):'',str(b.model,120),Date.now(),str(b.id),owner,b.paperId,b.lease).first();
+ const row=await db().prepare("UPDATE translation_paragraphs SET status=?,text=?,error=?,model=?,updated=?,lease_token='',lease_until=0 WHERE id=? AND owner=? AND paper_id=? AND extraction_mode=? AND status='running' AND lease_token=? RETURNING id").bind(status,b.action==='complete'?b.text:'',b.action==='fail'?str(b.error,1000):'',str(b.model,120),Date.now(),str(b.id),owner,b.paperId,mode,b.lease).first();
  if(!row){const saved=await db().prepare('SELECT status,text,model FROM translation_paragraphs WHERE id=? AND owner=? AND paper_id=?').bind(str(b.id),owner,b.paperId).first();if(b.action==='complete'&&saved?.status==='done'&&saved.text===b.text&&saved.model===str(b.model,120))return json({ok:true});throw Error('此段已由其他任务接管，请刷新译文状态');}return json({ok:true});
 }catch(e){return fail(e)}}

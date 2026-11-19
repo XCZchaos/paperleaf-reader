@@ -122,6 +122,16 @@ const conversationRows=await data(await call('research','GET',{query:'?paper='+p
 // Full translations: prepare exactly once, exclusive claims, lease recovery and owner checks.
 await data(await call('full','GET',{owner:null,query:'?paper='+p.id}),401);
 await data(await call('full','GET',{owner:'another-owner',query:'?paper='+p.id}),404);
+const aiPlan={action:'prepareAI',paperId:p.id,mode:'body-ai',review:argumentFixture.review};
+await data(await call('full','POST',{body:{...aiPlan,review:{...aiPlan.review,batches:[]}}}),400);
+const plans=await Promise.all([call('full','POST',{body:aiPlan}),call('full','POST',{device:'desktop',body:aiPlan})]);for(const plan of plans)await data(plan);
+const queues=await data(await call('full','GET',{query:'?paper='+p.id+'&mode=body-ai'}));assert.equal(queues.stats.total,5);assert.deepEqual(queues.preparedPages,[1,2,3]);
+const revised=structuredClone(aiPlan);revised.review.batches[0].decisions[1].before='join';revised.review.batches[0].decisions[1].reason='Continuation';
+await data(await call('full','POST',{body:revised}));assert.equal((await data(await call('full','GET',{query:'?paper='+p.id+'&mode=body-ai'}))).stats.total,5);
+await data(await call('full','POST',{body:{action:'prepare',paperId:p.id,mode:'body-ai',page:1,paragraphs:['Unreviewed']}}),400);
+const aiClaim=await data(await call('full','POST',{body:{action:'claim',paperId:p.id,mode:'body-ai'}}));
+await data(await call('full','PATCH',{body:{action:'renew',id:aiClaim.entry.id,paperId:p.id,mode:'body-ai',lease:aiClaim.lease}}));
+await data(await call('full','PATCH',{body:{action:'complete',id:aiClaim.entry.id,paperId:p.id,mode:'body-ai',lease:aiClaim.lease,text:'Long translation '.repeat(1800),model:'fixture'}}));
 const prepare={action:'prepare',paperId:p.id,page:1,paragraphs:['First paragraph.','Second paragraph.']};
 await data(await call('full','POST',{body:prepare}));await data(await call('full','POST',{body:prepare}));
 await data(await call('full','POST',{body:{...prepare,page:4}}),400);

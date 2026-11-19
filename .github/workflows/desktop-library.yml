@@ -1,0 +1,39 @@
+name: Desktop library scrolling
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/workspace.tsx'
+      - 'app/*css'
+      - 'scripts/check-library-scroll.mjs'
+      - '.github/workflows/desktop-library.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scroll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install renderer and browser test dependencies
+        run: |
+          npm install --global pnpm@11.25.0
+          pnpm install --frozen-lockfile
+          npm install --prefix work/browser-tools --no-save --no-audit --no-fund playwright-core@1.55.0
+      - name: Build the desktop renderer
+        run: pnpm run build
+      - name: Test short windows and the narrow drawer
+        shell: bash
+        run: |
+          node node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --ip 127.0.0.1 --port 4173 --inspector-port 0 >work/renderer-server.log 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          node scripts/check-library-scroll.mjs || { cat work/renderer-server.log; exit 1; }

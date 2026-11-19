@@ -1,4 +1,4 @@
-// Explicit opt-in; two real model calls using a tiny synthetic paper. No tokens
+// Explicit opt-in; real model calls use a tiny synthetic paper. No tokens
 // are read, copied or printed. The supplied, already signed-in profile is reused.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -6,7 +6,7 @@ import path from 'node:path';
 import {homedir} from 'node:os';
 import {spawnCodexProfile,createBridge,SITE} from '../companion/server.mjs';
 import {CodexRPC} from '../companion/rpc.mjs';
-import {newArgumentStudy,generateArgumentStudy,studyComplete} from '../lib/argument-study.mjs';
+import {newArgumentStudy,reviewArgumentStudy,generateArgumentStudy,studyComplete} from '../lib/argument-study.mjs';
 import {argumentHtml} from '../lib/argument-html.mjs';
 import {fixturePaper,fixturePages} from './check-argument.mjs';
 const args=process.argv.slice(2);
@@ -30,9 +30,21 @@ try{
   }
   assert.equal(j.status,'completed',j.error);console.log(JSON.stringify({phase:input.argument.phase,seconds:Math.round((Date.now()-start)/1000),retries:j.retryCount||0}));return j;
  };
- const result=await generateArgumentStudy({study:newArgumentStudy(fixturePaper,fixturePages,'body','科研方法 · 合成材料实测'),runTask,signal:AbortSignal.timeout(720000),onProgress:()=>{},onChange:async s=>fs.writeFile('work/argument/live.json',JSON.stringify(s,null,2)),model:model.id,effort});
- assert(studyComplete(result));assert.equal(result.batches.flatMap(b=>b.result.paragraphs).length,5);assert(result.batches[0].result.paragraphs.every(p=>/[\u4e00-\u9fff]/.test(p.translation)));assert(result.batches[0].result.paragraphs.find(p=>p.id==='p2-1').translation.includes('90'));
+ const initial=newArgumentStudy(fixturePaper,fixturePages,'body','科研方法 · 合成材料实测');
+ const onlyReview=args.includes('--segmentation-only');
+ const options={study:initial,runTask,signal:AbortSignal.timeout(720000),onProgress:()=>{},onChange:async s=>fs.writeFile('work/argument/live.json',JSON.stringify(s,null,2)),model:model.id,effort};
+ const reviewed=await reviewArgumentStudy(options);
+ const originalChars=s=>s.sources.map(p=>p.original).join('').replace(/\s/gu,'');
+ assert.equal(originalChars(reviewed),originalChars(initial));
+ assert.deepEqual(reviewed.review.batches.flatMap(b=>b.decisions.map(d=>d.id)),initial.sources.map(p=>p.id));
+ console.log(JSON.stringify({verified:'real semantic decisions',inputBlocks:initial.sources.length,paragraphs:reviewed.sources.length,windows:reviewed.review.batches.length}));
+ if(!onlyReview){
+ const result=await generateArgumentStudy({...options,study:reviewed});
+ const annotated=result.batches.flatMap(b=>b.result.paragraphs);
+ assert(studyComplete(result));assert.deepEqual(annotated.map(p=>p.id),reviewed.sources.map(p=>p.id));
+ assert(annotated.every(p=>/[\u4e00-\u9fff]/u.test(p.translation)));assert(annotated.some(p=>p.original.includes('90%')&&p.translation.includes('90')));
  const fonts={};for(const [key,file] of [['lora400','lora-latin-400-normal.woff2'],['lora600','lora-latin-600-normal.woff2'],['ibm400','ibm-plex-sans-latin-400-normal.woff2'],['ibm600','ibm-plex-sans-latin-600-normal.woff2']])fonts[key]=(await fs.readFile('public/fonts/'+file)).toString('base64');for(const [key,file] of [['loraLicense','lora-OFL.txt'],['ibmLicense','ibm-plex-sans-OFL.txt']])fonts[key]=await fs.readFile('public/fonts/'+file,'utf8');
  await fs.writeFile('work/argument/live.html',argumentHtml(result,fonts));
- console.log('PASS: real signed-in Codex through the production bridge generated all five bilingual paragraph annotations and a source-linked overview; HTML export validated. Synthetic source, Linux runtime; not Windows interactive OAuth or a long-paper quality benchmark.');
+ console.log('PASS: real Codex generated bilingual annotations and a source-linked overview for the reviewed paragraphs; HTML export validated.');
+ }
 }finally{await bridge?.close();bridge?.server.closeAllConnections();rpc.close();child.kill();await fs.rm(workdir,{recursive:true,force:true})}

@@ -46,4 +46,5 @@ jobs:
       - name: Check generated layouts and public research PDFs
         run: |
           node scripts/check-argument-paragraphs.mjs
+          node scripts/check-semantic-segmentation.mjs
           node scripts/check-paper-layouts.mjs

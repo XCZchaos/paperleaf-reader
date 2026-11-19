@@ -11,6 +11,10 @@ export type ArgumentAttempt = {
 export type ArgumentHistory = {studyCreated:number; attempts:ArgumentAttempt[]};
 
 function scopeOf(study:ArgumentStudy,input:ArgumentInput) {
+ if(input.phase==='segmentation'){
+  const parts=input.paragraphs,last=parts.at(-1)!;
+  return {label:'AI 判别自然段',scope:'PDF 第 '+parts[0].page+'–'+(last.endPage||last.page)+' 页 · '+parts.length+' 个初步片段'};
+ }
  const overview=input.phase==='overview';
  const sources=overview?study.sources:input.paragraphs;
  const batches=argumentBatches(study.sources);
@@ -26,11 +30,11 @@ function scopeOf(study:ArgumentStudy,input:ArgumentInput) {
 
 // Retain only the native bridge's public progress fields. Structured model
 // payloads and the original PDF text do not belong in an execution log.
-export function traceArgumentTasks(study:ArgumentStudy,run:typeof runCodexTask,record:(a:ArgumentAttempt,flush:boolean)=>void):typeof runCodexTask {
+export function traceArgumentTasks(getStudy:()=>ArgumentStudy,run:typeof runCodexTask,record:(a:ArgumentAttempt,flush:boolean)=>void):typeof runCodexTask {
  return async(input,signal,notify)=>{
   if(!input.argument)throw Error('缺少精读阶段');
   const created=Date.now();
-  let a:ArgumentAttempt={id:crypto.randomUUID(),...scopeOf(study,input.argument),status:'preparing',created,updated:created,model:input.model||'',effort:input.effort||'',events:[],summary:'',error:''};
+  let a:ArgumentAttempt={id:crypto.randomUUID(),...scopeOf(getStudy(),input.argument),status:'preparing',created,updated:created,model:input.model||'',effort:input.effort||'',events:[],summary:'',error:''};
   record(a,true);
   function snapshot(job:CodexJob){
    a={...a,status:job.status,updated:job.completedAt||job.updated||Date.now(),model:job.model||a.model,effort:job.effort||a.effort,events:job.events||[],summary:job.reasoningSummary||'',error:job.error||''};

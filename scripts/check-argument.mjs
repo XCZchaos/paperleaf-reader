@@ -42,7 +42,7 @@ export function fixtureOverview(ids){const f=(text,id)=>({text,sources:ids.inclu
  strongest:f('将结论限制在可观察的证据范围内，并明确给出尚不具备推广依据的原因。','p2-2'),
  weakest:f('分析者判断：核心改进仅以单次准确率呈现，缺乏不确定性估计，难以判断差异的稳定性。','p2-1'),
 };}
-export function completedFixture(){const s=newArgumentStudy(fixturePaper,fixturePages,'body','科研方法 · 第 6 周研讨');const batch=argumentBatches(s.sources)[0];s.batches=[{ids:batch.map(p=>p.id),result:validateArgumentBatch(fixtureBatch(batch),batch),model:'QA fixture — not a live model',effort:'medium'}];s.overview=fixtureOverview(s.sources.map(p=>p.id));s.overviewModel='QA fixture — not a live model';return s;}
+export function completedFixture(){const s=newArgumentStudy(fixturePaper,fixturePages,'body','科研方法 · 第 6 周研讨');const batch=argumentBatches(s.sources)[0];s.review.batches=[{model:'fixture',decisions:batch.map(p=>({id:p.id,before:'keep',splits:[],reason:''}))}];s.batches=[{ids:batch.map(p=>p.id),result:validateArgumentBatch(fixtureBatch(batch),batch),model:'QA fixture — not a live model',effort:'medium'}];s.overview=fixtureOverview(s.sources.map(p=>p.id));s.overviewModel='QA fixture — not a live model';return s;}
 
 async function checks(){
  const fixture=completedFixture();assert(studyComplete(fixture));assert.equal(validateArgumentStudy(fixture).sources.length,5);
@@ -59,6 +59,7 @@ async function checks(){
  const incomplete={...fixture,batches:[],overview:null};assert(!studyComplete(incomplete));assert(argumentHtml(incomplete).includes('未完成草稿'));assert.throws(()=>validateArgumentStudy({...incomplete,overview:fixture.overview}),/未完成/);
  assert.throws(()=>newArgumentStudy(fixturePaper,[{page:1,bodyParagraphs:['a'.repeat(160001)]}]),/上限/);
  const long=newArgumentStudy({...fixturePaper,pages:2},[{page:1,bodyParagraphs:Array.from({length:21},(_,i)=>'Synthetic continuation paragraph '+i+'.')}]);
+ long.paragraphVersion=3;delete long.review; // Regression for unfinished pre-AI studies.
  let calls=0,snapshot,controller=new AbortController();
  const runTask=async(input)=>{calls++;return {model:'fixture',effort:'low',argument:input.argument.phase==='paragraphs'?validateArgumentBatch(fixtureBatch(input.argument.paragraphs),input.argument.paragraphs):fixtureOverview(input.argument.sources)}};
  await assert.rejects(()=>generateArgumentStudy({study:long,runTask,signal:controller.signal,onProgress:()=>{},onChange:s=>{snapshot=s;controller.abort()}}),{name:'AbortError'});
