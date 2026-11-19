@@ -1,6 +1,6 @@
-# Paperleaf 桌面版 1.5.1
+# Paperleaf 桌面版 1.5.2
 
-Windows 10/11 x64 安装版。下载 Paperleaf-Setup-1.5.1-Windows-x64.exe，双击并按向导安装；之后从桌面或开始菜单打开 Paperleaf。无需解压 ZIP、安装 Node.js、运行命令或输入配对码。
+Windows 10/11 x64 安装版。下载 Paperleaf-Setup-1.5.2-Windows-x64.exe，双击并按向导安装；之后从桌面或开始菜单打开 Paperleaf。无需解压 ZIP、安装 Node.js、运行命令或输入配对码。
 
 升级前关闭旧版 Paperleaf，安装后从新快捷方式启动。原云端文献与本机账号目录继续保留；旧免安装文件夹无需继续使用。可通过 Windows 设置卸载，本机账号目录与云端资料不会随卸载删除。
 
@@ -8,7 +8,7 @@ Windows 10/11 x64 安装版。下载 Paperleaf-Setup-1.5.1-Windows-x64.exe，双
 
 macOS 版本分别提供 Apple 芯片（arm64）和 Intel（x64）DMG。打开对应安装包，将 Paperleaf.app 拖入 Applications；升级前退出旧版，再替换应用。首次运行如被系统拦截，请先核对 GitHub Release 和 SHA-256，再在「系统设置 → 隐私与安全性」中授权打开此应用。当前仅作 ad-hoc 签名，未完成 Apple Developer ID 签名和公证；不要关闭系统全局安全保护。
 
-Mac 端「检查更新」显示版本和更新说明，通过官方 Release 下载相应 DMG 手动替换；本机授权与云端资料保留。
+1.5.2 起，Mac 桌面端的「检查更新与版本说明」按本机芯片下载 PKG，核对大小和 SHA-256。「退出并打开 Mac 安装器」交由系统确认安装到「应用程序」，之后重新打开 Paperleaf。1.5.1 及以前的 Mac 版本需手动安装此次升级。安装包尚未经过 Apple Developer ID 签名和公证，受管理的 Mac 可能要求管理员批准。
 
 ## 首次使用
 

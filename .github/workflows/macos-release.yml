@@ -52,6 +52,7 @@ jobs:
           name: Paperleaf-macOS-${{ matrix.arch }}
           path: |
             work/mac-${{ matrix.arch }}/*.dmg
+            work/mac-${{ matrix.arch }}/Paperleaf-*.pkg
             work/mac-${{ matrix.arch }}/*.sha256
             work/mac-${{ matrix.arch }}/build.json
           compression-level: 0
@@ -76,7 +77,7 @@ jobs:
         run: |
           set -euo pipefail
           existing=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
-          for file in installers/*/*.dmg installers/*/*.sha256; do
+          for file in installers/*/*.dmg installers/*/Paperleaf-*.pkg installers/*/*.sha256; do
             # Keep already-staged, verified release bytes immutable.
             if ! grep -Fxq "$(basename "$file")" <<< "$existing"; then
               gh release upload "$RELEASE_TAG" "$file"

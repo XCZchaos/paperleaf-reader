@@ -36,7 +36,7 @@ jobs:
           gh api "repos/$GH_REPO/actions/runs/$MAC_RUN_ID" > work-run.json
           node -e 'const r=require("./work-run.json"); if(r.conclusion!=="success" || r.path!==".github/workflows/macos-release.yml") throw Error("A successful native macOS build is required")'
           source_sha=$(node -p 'require("./work-run.json").head_sha')
-          git diff --exit-code "$source_sha" HEAD -- desktop companion scripts/build-macos.mjs scripts/check-macos.mjs scripts/check-codex-protocol.mjs
+          git diff --exit-code "$source_sha" HEAD -- desktop companion scripts/build-macos.mjs scripts/check-macos.mjs scripts/check-codex-protocol.mjs ':(exclude)desktop/release.json'
       - uses: actions/download-artifact@v4
         with:
           github-token: ${{ github.token }}
@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           for arch in arm64 x64; do
-            (cd "installers/Paperleaf-macOS-$arch" && sha256sum -c "Paperleaf-${RELEASE_TAG#v}-macOS-$arch.dmg.sha256")
+            (cd "installers/Paperleaf-macOS-$arch" && sha256sum -c "Paperleaf-${RELEASE_TAG#v}-macOS-$arch.dmg.sha256" && sha256sum -c "Paperleaf-${RELEASE_TAG#v}-macOS-$arch.pkg.sha256")
           done
           node scripts/fetch-release-installer.mjs
       - name: Attach installers to draft without publishing
@@ -58,6 +58,6 @@ jobs:
           set -euo pipefail
           # Recheck immediately before upload. This workflow never publishes.
           test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
-          gh release upload "$RELEASE_TAG" work/installer/*.exe installers/*/*.dmg installers/*/*.sha256 --clobber
+          gh release upload "$RELEASE_TAG" work/installer/*.exe installers/*/*.dmg installers/*/Paperleaf-*.pkg installers/*/*.sha256 --clobber
           test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
           gh release view "$RELEASE_TAG" --json isDraft,assets --jq '{draft:.isDraft,files:[.assets[].name]}'

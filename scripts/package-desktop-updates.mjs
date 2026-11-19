@@ -23,6 +23,6 @@ try{
  }
 }finally{await input.close()}
 const sha256=hash.digest('hex');if(sha256!==release.sha256)throw Error('Installer SHA-256 differs from published release metadata');
-const manifest=validateRelease({version,date:release.date,notes:release.notes,artifact:{platform:'win32-x64',size,sha256,chunks}});
+const manifest=validateRelease({version,date:release.date,notes:release.notes,macPackages:release.macPackages,artifact:{platform:'win32-x64',size,sha256,chunks}});
 await writeFile(path.join(root,'desktop-update.json'),JSON.stringify(manifest,null,2)+'\n');
 console.log(JSON.stringify({version,size,chunks:chunks.length,sha256}));

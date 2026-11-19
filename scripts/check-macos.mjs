@@ -31,3 +31,38 @@ try{
  try{await new Promise(resolve=>setTimeout(resolve,12000));if(spawnError)throw spawnError;assert.equal(child.exitCode,null,'Desktop exited during startup: '+stderr);console.log('PASS: installed macOS desktop remained running for 12 seconds. OAuth/model inference and Gatekeeper approval are not covered.');}
  finally{child.kill('SIGTERM');await new Promise(resolve=>{if(child.exitCode!==null)return resolve();child.once('exit',resolve);setTimeout(()=>{child.kill('SIGKILL');resolve()},3000).unref()});}
 }finally{run('hdiutil',['detach',mount]);}
+
+// Exercise the same per-chip download and install gate as the renderer, then use
+// Apple's noninteractive Installer engine on a disposable native runner.
+if(process.env.GITHUB_ACTIONS==='true'&&process.env.RUNNER_ENVIRONMENT==='github-hosted'){
+ const {DesktopUpdater}=await import('../desktop/updater.mjs');
+ const {createReadStream,createWriteStream}=await import('node:fs');
+ const {Readable}=await import('node:stream');
+ const {pipeline}=await import('node:stream/promises');
+ const {homedir}=await import('node:os');
+ const appPath='/Applications/Paperleaf.app',old='1.5.1',oldName=`Paperleaf-${old}-macOS-${arch}.dmg`;
+ assert.equal(await fs.lstat(appPath).catch(e=>{if(e.code==='ENOENT')return null;throw e}),null,'Runner already contains Paperleaf');
+ const oldFile=path.join(work,oldName),prevMount=path.join(work,'previous');
+ const response=await fetch(`https://github.com/XCZchaos/paperleaf-reader/releases/download/v${old}/${oldName}`);
+ assert(response.ok);await pipeline(Readable.fromWeb(response.body),createWriteStream(oldFile,{flags:'wx'}));
+ const priorHash={arm64:'13439b55fa2b0986cbaa084d1c6d1de13f2572eddf10da234b3c04707734501d',x64:'eef7d2709486bf3dc72e48268320e7848c80aae184d27e29cb56376eae50f65b'}[arch];
+ assert.equal(createHash('sha256').update(await fs.readFile(oldFile)).digest('hex'),priorHash);
+ await fs.mkdir(prevMount);run('hdiutil',['attach','-nobrowse','-readonly','-mountpoint',prevMount,oldFile]);
+ try{run('sudo',['-n','/usr/bin/ditto',path.join(prevMount,'Paperleaf.app'),appPath]);}finally{run('hdiutil',['detach',prevMount]);}
+ const installedPlist=path.join(appPath,'Contents/Info.plist');
+ const versionOf=()=>run('/usr/libexec/PlistBuddy',['-c','Print :CFBundleShortVersionString',installedPlist]).trim();
+ assert.equal(versionOf(),old);
+ const profile=path.join(homedir(),'Library','Application Support','Paperleaf');await fs.mkdir(profile,{recursive:true});
+ const marker=path.join(profile,'qa-retained-'+crypto.randomUUID());await fs.writeFile(marker,'user data fixture',{flag:'wx'});
+ const url=`https://github.com/XCZchaos/paperleaf-reader/releases/download/v${build.version}/Paperleaf-${build.version}-macOS-${arch}.pkg`;
+ const hash='a'.repeat(64),manifest={version:build.version,date:'2026-11-19',notes:['Test release'],artifact:{platform:'win32-x64',size:1,sha256:hash,chunks:[{path:`/desktop-updates/${build.version}/${hash}.part`,size:1,sha256:hash}]},macPackages:{[arch]:{size:build.pkgSize,sha256:build.pkgSha256}}};
+ const updater=new DesktopUpdater({version:old,platform:'darwin',arch,site:'https://paperleaf.test',dataDir:path.join(work,'update-profile'),
+  fetch:async(address,options)=>{if(address.endsWith('/desktop-update.json'))return Response.json(manifest);assert.equal(address,url);assert.equal(options.credentials,'omit');return new Response(Readable.toWeb(createReadStream(build.pkg)));},
+  launch:async file=>{assert.equal(path.basename(file),path.basename(build.pkg));run('sudo',['-n','/usr/sbin/installer','-pkg',file,'-target','/']);}});
+ assert.equal((await updater.check()).status,'available');
+ assert.equal((await updater.download()).status,'ready');
+ const applied=await updater.install();assert.equal(applied.status,'installing',applied.error);
+ assert.equal(versionOf(),build.version);assert.equal(await fs.readFile(marker,'utf8'),'user data fixture');
+ run('codesign',['--verify','--deep','--strict',appPath]);await fs.unlink(marker);
+ console.log(`PASS: native ${arch} updated the installed ${old} app to ${build.version} using the actual PKG through the download and verification flow; retained the profile marker. Interactive Gatekeeper approval is outside this run.`);
+}

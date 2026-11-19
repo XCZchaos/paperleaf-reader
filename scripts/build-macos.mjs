@@ -13,7 +13,9 @@ const require=createRequire(path.join(root,'work/mac-tooling/package.json'));
 const {packager}=require('@electron/packager');
 const run=(command,args)=>execFileSync(command,args,{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:15*60*1000});
 await fs.rm(work,{recursive:true,force:true});await fs.mkdir(source,{recursive:true});
-await fs.cp('desktop',path.join(source,'desktop'),{recursive:true,filter:src=>!src.endsWith('uninstall-files.nsh')});
+await fs.mkdir(path.join(source,'desktop'));
+for(const name of ['main.mjs','runtime.mjs','updater.mjs','preload.cjs','package.json'])await fs.copyFile(path.join('desktop',name),path.join(source,'desktop',name));
+await fs.cp('desktop/assets',path.join(source,'desktop/assets'),{recursive:true});
 await fs.copyFile('desktop/package.json',path.join(source,'package.json'));
 await fs.mkdir(path.join(source,'companion'));
 for(const name of ['server.mjs','rpc.mjs','research.mjs','argument.mjs','progress.mjs','transport.mjs'])await fs.copyFile(path.join('companion',name),path.join(source,'companion',name));
@@ -48,7 +50,24 @@ await fs.writeFile(path.join(stage,'安装说明.txt'),`Paperleaf ${version} · 
 const installer=path.join(work,`Paperleaf-${version}-macOS-${arch}.dmg`);
 run('hdiutil',['create','-volname',`Paperleaf ${version}`,'-srcfolder',stage,'-ov','-format','UDZO',installer]);
 run('hdiutil',['verify',installer]);
+// A script-free component package lets Apple's Installer own replacement and authorization.
+const componentList=path.join(work,'components.plist');
+await fs.writeFile(componentList,`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><array><dict>
+<key>RootRelativeBundlePath</key><string>Paperleaf.app</string><key>BundleIsRelocatable</key><false/>
+<key>BundleHasStrictIdentifier</key><true/><key>BundleIsVersionChecked</key><true/>
+<key>BundleOverwriteAction</key><string>upgrade</string></dict></array></plist>`);
+const component=path.join(work,'reader-component.pkg');
+run('pkgbuild',['--root',output,'--component-plist',componentList,'--install-location','/Applications','--identifier','com.paperleaf.reader.pkg','--version',version,component]);
+const pkg=path.join(work,`Paperleaf-${version}-macOS-${arch}.pkg`),distribution=path.join(work,'Distribution.xml');
+await fs.writeFile(distribution,`<?xml version="1.0"?><installer-gui-script minSpecVersion="2">
+<title>Paperleaf ${version}</title><options customize="never" hostArchitectures="${arch==='arm64'?'arm64':'x86_64'}"/>
+<domains enable_localSystem="true" enable_currentUserHome="false" enable_anywhere="false"/>
+<choices-outline><line choice="reader"/></choices-outline><choice id="reader" visible="false"><pkg-ref id="com.paperleaf.reader.pkg"/></choice>
+<pkg-ref id="com.paperleaf.reader.pkg" version="${version}">reader-component.pkg</pkg-ref></installer-gui-script>`);
+run('productbuild',['--distribution',distribution,'--package-path',work,pkg]);
+const pkgBytes=await fs.readFile(pkg),pkgSha256=createHash('sha256').update(pkgBytes).digest('hex');
+await fs.writeFile(pkg+'.sha256',`${pkgSha256}  ${path.basename(pkg)}\n`);
 const data=await fs.readFile(installer),sha256=createHash('sha256').update(data).digest('hex');
 await fs.writeFile(installer+'.sha256',`${sha256}  ${path.basename(installer)}\n`);
-await fs.writeFile(path.join(work,'build.json'),JSON.stringify({version,arch,platform:'darwin',electronVersion,codexVersion,installer,app,sha256,size:data.length,signing:'ad-hoc',notarized:false},null,2)+'\n');
-console.log(JSON.stringify({installer,app,arch,sha256,bytes:data.length,signing:'ad-hoc',notarized:false}));
+await fs.writeFile(path.join(work,'build.json'),JSON.stringify({version,arch,platform:'darwin',electronVersion,codexVersion,installer,app,sha256,pkg,pkgSha256,pkgSize:pkgBytes.length,size:data.length,signing:'ad-hoc',notarized:false},null,2)+'\n');
+console.log(JSON.stringify({installer,app,arch,sha256,pkgSha256,pkgSize:pkgBytes.length,bytes:data.length,signing:'ad-hoc',notarized:false}));

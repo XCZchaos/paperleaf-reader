@@ -20,7 +20,14 @@ export function validateRelease(data){
   paths.add(c.path);total+=c.size;
  }
  if(total!==a.size)throw Error('安装包大小不一致');
- return {version:data.version,date:data.date,notes:data.notes,artifact:a};
+ const macPackages={};
+ for(const arch of ['arm64','x64']){
+  const pkg=data.macPackages?.[arch];
+  if(pkg===undefined)continue;
+  if(!pkg||!Number.isSafeInteger(pkg.size)||pkg.size<1||pkg.size>1024**3||!hashPattern.test(pkg.sha256))throw Error('Mac 安装包校验信息不完整');
+  macPackages[arch]={size:pkg.size,sha256:pkg.sha256};
+ }
+ return {version:data.version,date:data.date,notes:data.notes,artifact:a,macPackages};
 }
 
 // The renderer can only request fixed actions. URLs, paths and executable arguments
@@ -28,7 +35,7 @@ export function validateRelease(data){
 export class DesktopUpdater{
  constructor({version,site,dataDir,fetch,launch,openExternal,platform=process.platform,arch=process.arch}){
   Object.assign(this,{version,site,dataDir,fetch,launch,openExternal,platform,arch});
-  this.state={status:'idle',currentVersion:version,platform,arch,manualUpdate:platform==='darwin',release:null,progress:0,downloaded:0,error:'',checkedAt:null};
+  this.state={status:'idle',currentVersion:version,platform,arch,manualUpdate:false,release:null,progress:0,downloaded:0,error:'',checkedAt:null};
   this.release=null;this.controller=null;this.file=null;
  }
  snapshot(){return structuredClone(this.state)}
@@ -42,22 +49,26 @@ export class DesktopUpdater{
    if(!response.ok||!response.headers.get('content-type')?.includes('json'))throw Error('请先登录云端阅读空间，然后重试检查更新');
    const body=await response.text();if(body.length>100000)throw Error('更新信息过大');
    this.release=validateRelease(JSON.parse(body));
-   return this.set({status:newerVersion(this.release.version,this.version)?'available':'current',release:{version:this.release.version,date:this.release.date,notes:this.release.notes,size:this.platform==='darwin'?0:this.release.artifact.size},checkedAt:Date.now(),progress:0,downloaded:0});
+   const mac=this.platform==='darwin',pkg=mac?this.release.macPackages[this.arch]:this.release.artifact;
+   const available=newerVersion(this.release.version,this.version);
+   return this.set({status:available?'available':'current',manualUpdate:mac&&available&&!pkg,installMethod:mac?'macos-pkg':'windows-exe',release:{version:this.release.version,date:this.release.date,notes:this.release.notes,size:pkg?.size||0},checkedAt:Date.now(),progress:0,downloaded:0});
   }catch(e){return this.set({status:'error',error:e.message||'检查失败，请检查网络后重试'})}
  }
  async download(){
-  if(this.state.status==='downloading'||this.state.status==='ready')return this.snapshot();
+  if(['downloading','ready','installing','checking'].includes(this.state.status))return this.snapshot();
   if(!this.release||!newerVersion(this.release.version,this.version))throw Error('请先检查更新');
-  if(this.platform==='darwin'&&['arm64','x64'].includes(this.arch)){
-   if(!this.openExternal)throw Error('请从 GitHub Release 下载 macOS 更新');
-   // macOS updates use the architecture-specific DMG on our fixed release page.
-   // Keep arbitrary renderer URLs and unauthenticated auto-replacement out of IPC.
-   await this.openExternal('https://github.com/XCZchaos/paperleaf-reader/releases/tag/v'+this.release.version);
+  const mac=this.platform==='darwin',release=this.release;
+  if(mac&&!['arm64','x64'].includes(this.arch)||!mac&&(this.platform!=='win32'||this.arch!=='x64'))throw Error('当前平台或芯片没有对应安装包');
+  const artifact=mac?release.macPackages[this.arch]:release.artifact;
+  if(mac&&!artifact){
+   if(!this.openExternal)throw Error('此版本尚未提供 Mac 更新包');
+   await this.openExternal('https://github.com/XCZchaos/paperleaf-reader/releases/tag/v'+release.version);
    return this.snapshot();
   }
-  if(this.platform!=='win32'||this.arch!=='x64')throw Error('此安装包仅支持 Windows x64');
-  const release=this.release,dir=path.join(this.dataDir,'updates');
-  const destination=path.join(dir,`Paperleaf-Setup-${release.version}-Windows-x64.exe`),partial=destination+'.partial';
+  const filename=mac?`Paperleaf-${release.version}-macOS-${this.arch}.pkg`:`Paperleaf-Setup-${release.version}-Windows-x64.exe`;
+  const dir=path.join(this.dataDir,'updates'),destination=path.join(dir,filename),partial=destination+'.partial';
+  const chunks=mac?[{path:`https://github.com/XCZchaos/paperleaf-reader/releases/download/v${release.version}/${filename}`,size:artifact.size,sha256:artifact.sha256}]:artifact.chunks;
+  this.file=null;
   const controller=new AbortController();this.controller=controller;
   this.set({status:'downloading',error:'',progress:0,downloaded:0});
   let handle;
@@ -65,20 +76,24 @@ export class DesktopUpdater{
    await mkdir(dir,{recursive:true});await rm(partial,{force:true});
    handle=await open(partial,'wx',0o600);
    const hash=createHash('sha256');let total=0;
-   for(const chunk of release.artifact.chunks){
-    const response=await this.fetch(this.site+chunk.path,{credentials:'include',redirect:'error',cache:'no-store',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(180000)])});
+   for(const chunk of chunks){
+    const response=await this.fetch(mac?chunk.path:this.site+chunk.path,{credentials:mac?'omit':'include',redirect:mac?'follow':'error',referrerPolicy:'no-referrer',cache:'no-store',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(mac?900000:180000)])});
+    if(mac&&response.url){
+     const end=new URL(response.url);
+     if(end.protocol!=='https:'||end.port||end.username||end.password||!['github.com','release-assets.githubusercontent.com','objects.githubusercontent.com'].includes(end.hostname))throw Error('Mac 安装包下载来源无效');
+    }
     if(!response.ok||!response.body)throw Error('下载失败，请检查登录状态和网络');
     const partHash=createHash('sha256');let count=0;
     for await(const bytes of response.body){
      controller.signal.throwIfAborted();count+=bytes.byteLength;total+=bytes.byteLength;
-     if(count>chunk.size||total>release.artifact.size)throw Error('下载内容大小异常');
+     if(count>chunk.size||total>artifact.size)throw Error('下载内容大小异常');
      partHash.update(bytes);hash.update(bytes);
      let offset=0;while(offset<bytes.length){const {bytesWritten}=await handle.write(bytes,offset,bytes.length-offset);offset+=bytesWritten;}
-     this.set({downloaded:total,progress:Math.floor(total/release.artifact.size*100)});
+     this.set({downloaded:total,progress:Math.floor(total/artifact.size*100)});
     }
     if(count!==chunk.size||partHash.digest('hex')!==chunk.sha256)throw Error('下载校验失败，请重新下载');
    }
-   if(total!==release.artifact.size||hash.digest('hex')!==release.artifact.sha256)throw Error('安装包校验失败');
+   if(total!==artifact.size||hash.digest('hex')!==artifact.sha256)throw Error('安装包校验失败');
    await handle.sync();await handle.close();handle=null;
    await rename(partial,destination);this.file=destination;
    return this.set({status:'ready',progress:100});
@@ -95,7 +110,8 @@ export class DesktopUpdater{
    // Recheck bytes immediately before launching, including modifications on disk.
    const handle=await open(this.file,'r');const hash=createHash('sha256');let size=0;
    try{for await(const bytes of handle.createReadStream()){hash.update(bytes);size+=bytes.length;}}finally{await handle.close().catch(()=>{})}
-   if(size!==this.release.artifact.size||hash.digest('hex')!==this.release.artifact.sha256)throw Error('安装包已变化，请重新下载');
+   const artifact=this.platform==='darwin'?this.release.macPackages[this.arch]:this.release.artifact;
+   if(!artifact||size!==artifact.size||hash.digest('hex')!==artifact.sha256)throw Error('安装包已变化，请重新下载');
    await this.launch(this.file);return this.snapshot();
   }catch(e){this.file=null;return this.set({status:'error',error:e.message})}
  }

@@ -1,6 +1,9 @@
 import {app,BrowserWindow,Menu,ipcMain,session,shell,dialog} from 'electron';
 import path from 'node:path';
-import {spawn} from 'node:child_process';
+import {spawn,execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {randomUUID} from 'node:crypto';
+const execFileAsync=promisify(execFile);
 import {DesktopUpdater} from './updater.mjs';
 import {fileURLToPath} from 'node:url';
 import {DesktopRuntime} from './runtime.mjs';
@@ -21,6 +24,12 @@ if(!app.requestSingleInstanceLock()){app.quit()}else{
    try{const response=await cloud.fetch(SITE+'/api/account',{credentials:'include',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error();const state=await response.json();return state.account;}catch{throw Error('无法验证云端账号，请检查网络并重新登录 Paperleaf');}
   }});
   updater=new DesktopUpdater({version:app.getVersion(),site:SITE,dataDir:app.getPath('userData'),fetch:(...args)=>cloud.fetch(...args),openExternal:url=>shell.openExternal(url),launch:async file=>{
+   if(process.platform==='darwin'){
+    // Downloaded installers retain Gatekeeper assessment and user confirmation.
+    await execFileAsync('/usr/bin/xattr',['-w','com.apple.quarantine',`0081;${Math.floor(Date.now()/1000).toString(16)};Paperleaf;${randomUUID()}`,file]);
+    await execFileAsync('/usr/bin/open',['-b','com.apple.installer',file]);
+    await runtime.disconnect();quitting=true;app.exit(0);return;
+   }
    await runtime.disconnect();
    await new Promise((resolve,reject)=>{const child=spawn(file,[],{detached:true,stdio:'ignore',windowsHide:false});child.once('error',reject);child.once('spawn',()=>{child.unref();resolve()})});
    quitting=true;app.exit(0);
