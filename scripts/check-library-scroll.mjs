@@ -7,7 +7,7 @@ const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/u
 const url=process.env.PAPERLEAF_UI_URL||'http://127.0.0.1:4173';
 try {
   for(const [width,height] of [[1150,540],[390,560]]) {
-    const page=await browser.newPage({viewport:{width,height}});
+    const page=await browser.newPage({viewport:{width,height},hasTouch:width<700});
     const topics=Array.from({length:40},(_,i)=>({id:'topic-'+i,name:'滚动测试主题 '+(i+1),created:i}));
     await page.addInitScript(()=>{
       window.paperleafDesktop={
@@ -46,6 +46,17 @@ try {
     await page.keyboard.press('Home');
     await page.waitForFunction(()=>document.querySelector('aside.sidebar').scrollTop<2);
     assert.deepEqual(await mainOffset(),original);
+    if(width<700){
+      const touch=await page.context().newCDPSession(page);
+      const x=75;
+      await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y:450}]});
+      for(const y of [400,350,300,250,200,150])await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y}]});
+      await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+      await page.waitForFunction(()=>document.querySelector('aside.sidebar').scrollTop>100);
+      assert.deepEqual(await mainOffset(),original);
+      await touch.detach();
+      console.log('PASS: touch swipe scrolls the narrow drawer independently.');
+    }
     console.log('PASS: '+width+'×'+height+' · 40 topics · wheel and boundary containment, keyboard paging, updates and account controls on the actual library sidebar.');
     await page.close();
   }

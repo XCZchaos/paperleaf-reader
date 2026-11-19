@@ -547,7 +547,8 @@ button,input,textarea,select{font-family:inherit}
   overflow-x: hidden;
   overscroll-behavior-y: contain;
   scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  scrollbar-color: color-mix(in srgb, var(--muted-foreground) 62%, var(--line)) transparent;
+  scrollbar-gutter: stable;
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 .app-shell > .sidebar > * { flex-shrink: 0; }
