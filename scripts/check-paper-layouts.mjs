@@ -13,14 +13,23 @@ const samples=[
  {name:'bert',url:'https://aclanthology.org/N19-1423.pdf',sha:'987545ffb087f1ece898142c403a516baeabeb70ce19089397fac6f7db12c3d4',pages:16,landmarks:['new language representation model','83.1'],page:1},
  {name:'dropout',url:'https://proceedings.mlr.press/v48/gal16.pdf',sha:'bce8ef24a1ccd970cdf741c37872c0941d879ea0c0b8f30c05efb2b4c346dd28',pages:10,landmarks:['Deep learning tools','deep reinforcement learning'],page:1},
  {name:'ligo',url:'https://arxiv.org/pdf/1602.03837',sha:'e5e864c23d015b69be17e5b5d51b5b462d2829353a867513414b6728f54589c4',pages:16,landmarks:['On September 14','luminosity distance'],page:1},
- {name:'rules',url:'https://journals.plos.org/ploscompbiol/article/file?id=10.1371/journal.pcbi.1003285&type=printable',sha:'35648a3880bdd8bf30e8212a3847b7bd35f504ee5ccbd1ad3856d206acd181db',pages:4,landmarks:['We here present','your future self.'],page:2}
+ {name:'rules',url:'https://journals.plos.org/ploscompbiol/article/file?id=10.1371/journal.pcbi.1003285&type=printable',mirror:'https://europepmc.org/articles/PMC3812051?pdf=render',sha:'35648a3880bdd8bf30e8212a3847b7bd35f504ee5ccbd1ad3856d206acd181db',pages:4,landmarks:['We here present','your future self.'],page:2}
 ];
 for(const sample of samples){
  let data;
  if(process.argv[2])data=await fs.readFile(path.join(process.argv[2],sample.name+'.pdf'));
  else{
-  const response=await fetch(sample.url,{signal:AbortSignal.timeout(60000)});
-  assert(response.ok,'Public PDF unavailable: '+sample.name);data=Buffer.from(await response.arrayBuffer());
+  let last;
+  for(const url of [sample.url,sample.mirror].filter(Boolean)){
+   try{
+    const response=await fetch(url,{signal:AbortSignal.timeout(60000)});
+    if(!response.ok)throw Error('HTTP '+response.status);
+    const bytes=Buffer.from(await response.arrayBuffer());
+    if(createHash('sha256').update(bytes).digest('hex')!==sample.sha)throw Error('Publisher revision differs');
+    data=bytes;break;
+   }catch(error){last=error}
+  }
+  if(!data)throw Error('Failed to retrieve the pinned '+sample.name+' PDF: '+last?.message);
  }
  assert.equal(createHash('sha256').update(data).digest('hex'),sample.sha,'PDF revision changed: '+sample.name);
  const doc=await getDocument({data:new Uint8Array(data),useSystemFonts:true}).promise;

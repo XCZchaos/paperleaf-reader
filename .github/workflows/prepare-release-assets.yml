@@ -3,20 +3,24 @@ on:
   workflow_dispatch:
     inputs:
       mac_run_id:
-        description: Successful macOS build run whose native source matches this branch
+        description: Successful native macOS build
         required: true
-        default: '44273681904'
+  push:
+    branches: ['release/desktop-v*']
 permissions:
   contents: write
   actions: read
+concurrency:
+  group: desktop-publication
+  cancel-in-progress: false
 jobs:
-  stage-only:
+  stage:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      MAC_RUN_ID: ${{ inputs.mac_run_id }}
+      REQUESTED_MAC_RUN: ${{ inputs.mac_run_id }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,67 +28,96 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Require an existing draft and the exact native source
+      - name: Select and verify the source for each native artifact
+        id: builds
         shell: bash
         run: |
           set -euo pipefail
-          version=$(node -p "JSON.parse(require('fs').readFileSync('desktop/package.json')).version")
-          echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
-          gh release view "v$version" --json isDraft,tagName > work-release.json
-          node -e 'const d=require("./work-release.json"); const v=require("./desktop/package.json").version; if(d.isDraft!==true || d.tagName!=="v"+v) throw Error("Only an existing draft may receive staged assets")'
-          [[ "$MAC_RUN_ID" =~ ^[0-9]+$ ]]
-          gh api "repos/$GH_REPO/actions/runs/$MAC_RUN_ID" > work-run.json
-          node -e 'const r=require("./work-run.json"); if(r.conclusion!=="success" || r.path!==".github/workflows/macos-release.yml") throw Error("A successful native macOS build is required")'
-          source_sha=$(node -p 'require("./work-run.json").head_sha')
-          git diff --exit-code "$source_sha" HEAD -- desktop companion scripts/build-macos.mjs scripts/check-macos.mjs scripts/check-codex-protocol.mjs ':(exclude)desktop/release.json'
+          version=$(node -p 'require("./desktop/package.json").version')
+          tag="v$version"
+          test "$version" = "$(node -p 'require("./desktop/release.json").version')"
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            test "$GITHUB_REF_NAME" = "release/desktop-$tag"
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+            test -s "docs/releases/$tag.md"
+          else
+            test "$(gh release view "$tag" --json isDraft --jq .isDraft)" = true
+          fi
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          mac=${REQUESTED_MAC_RUN:-$(node -p 'require("./desktop/release.json").buildRuns.macos')}
+          win=$(node -p 'require("./desktop/release.json").buildRuns?.windows || ""')
+          for platform in mac windows; do
+            if [[ "$platform" == mac ]]; then
+              run="$mac"; workflow=macos-release; inputs=(scripts/build-macos.mjs scripts/check-macos.mjs)
+            else
+              run="$win"; workflow=windows-build; inputs=(scripts/build-desktop.mjs scripts/build-installer.mjs scripts/check-desktop.mjs)
+              if [[ -z "$run" && "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then continue; fi
+            fi
+            [[ "$run" =~ ^[0-9]+$ ]]
+            info=$(gh api "repos/$GH_REPO/actions/runs/$run")
+            test "$(jq -r .conclusion <<< "$info")" = success
+            test "$(jq -r .path <<< "$info")" = ".github/workflows/$workflow.yml"
+            source_sha=$(jq -r .head_sha <<< "$info")
+            git diff --exit-code "$source_sha" HEAD -- desktop companion "${inputs[@]}" ':(exclude)desktop/release.json'
+          done
+          echo "mac=$mac" >> "$GITHUB_OUTPUT"
+          echo "windows=$win" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
           github-token: ${{ github.token }}
-          run-id: ${{ inputs.mac_run_id }}
+          run-id: ${{ steps.builds.outputs.mac }}
           pattern: Paperleaf-macOS-*
           path: installers
           merge-multiple: false
-      - name: Verify both Mac installers and fetch the pinned Windows EXE
+      - uses: actions/download-artifact@v4
+        if: steps.builds.outputs.windows != ''
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.builds.outputs.windows }}
+          name: Paperleaf-Windows-x64
+          path: work/installer
+      - name: Verify complete installers and stage the release
         shell: bash
         run: |
           set -euo pipefail
-          for arch in arm64 x64; do
-            (cd "installers/Paperleaf-macOS-$arch" && sha256sum -c "Paperleaf-${RELEASE_TAG#v}-macOS-$arch.dmg.sha256" && sha256sum -c "Paperleaf-${RELEASE_TAG#v}-macOS-$arch.pkg.sha256")
-          done
           version=${RELEASE_TAG#v}
-          exe="Paperleaf-Setup-$version-Windows-x64.exe"
-          existing=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
-          if grep -Fxq "$exe" <<< "$existing"; then
-            mkdir -p work/installer
-            gh release download "$RELEASE_TAG" --pattern "$exe" --dir work/installer
-          else
-            node scripts/fetch-release-installer.mjs
-          fi
-          expected=$(node -p 'require("./desktop/release.json").sha256')
-          echo "$expected  work/installer/$exe" | sha256sum -c -
-          for arch in arm64 x64; do
-            pkg="installers/Paperleaf-macOS-$arch/Paperleaf-$version-macOS-$arch.pkg"
-            pinned=$(node -p 'require("./desktop/release.json").macPackages[process.argv[1]].sha256' "$arch")
-            echo "$pinned  $pkg" | sha256sum -c -
-          done
-      - name: Attach installers to draft without publishing
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Recheck immediately before upload. This workflow never publishes.
-          test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
-          existing=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
-          version=${RELEASE_TAG#v}
-          files=("work/installer/Paperleaf-Setup-$version-Windows-x64.exe")
-          for arch in arm64 x64; do
-            base="installers/Paperleaf-macOS-$arch/Paperleaf-$version-macOS-$arch"
-            files+=("$base.dmg" "$base.dmg.sha256" "$base.pkg" "$base.pkg.sha256")
-          done
-          for file in "${files[@]}"; do
-            test -s "$file"
-            if ! grep -Fxq "$(basename "$file")" <<< "$existing"; then
-              gh release upload "$RELEASE_TAG" "$file"
+          exe="work/installer/Paperleaf-Setup-$version-Windows-x64.exe"
+          if [[ ! -s "$exe" ]]; then
+            if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$(basename "$exe")"; then
+              mkdir -p work/installer
+              gh release download "$RELEASE_TAG" --pattern "$(basename "$exe")" --dir work/installer
+            else
+              node scripts/fetch-release-installer.mjs
             fi
+          fi
+          echo "$(node -p 'require("./desktop/release.json").sha256')  $exe" | sha256sum -c -
+          files=("$exe")
+          for arch in arm64 x64; do
+            dir="installers/Paperleaf-macOS-$arch"
+            base="Paperleaf-$version-macOS-$arch"
+            (cd "$dir" && sha256sum -c "$base.dmg.sha256" && sha256sum -c "$base.pkg.sha256")
+            pkg="$dir/$base.pkg"
+            echo "$(node -p 'require("./desktop/release.json").macPackages[process.argv[1]].sha256' "$arch")  $pkg" | sha256sum -c -
+            test "$(stat -c %s "$pkg")" = "$(node -p 'require("./desktop/release.json").macPackages[process.argv[1]].size' "$arch")"
+            files+=("$dir/$base.dmg" "$dir/$base.dmg.sha256" "$pkg" "$dir/$base.pkg.sha256")
           done
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            test "$GITHUB_EVENT_NAME" = push
+            title=$(sed -n '1s/^# //p' "docs/releases/$RELEASE_TAG.md")
+            test -n "$title"
+            tail -n +2 "docs/releases/$RELEASE_TAG.md" > work/release-notes.md
+            gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" --title "$title" --notes-file work/release-notes.md
+          fi
           test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
-          gh release view "$RELEASE_TAG" --json isDraft,assets --jq '{draft:.isDraft,files:[.assets[].name]}'
+          existing=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
+          for file in "${files[@]}"; do
+            if ! grep -Fxq "$(basename "$file")" <<< "$existing"; then gh release upload "$RELEASE_TAG" "$file"; fi
+          done
+          gh release view "$RELEASE_TAG" --json assets > work/attached.json
+          node scripts/check-release-assets.mjs work/attached.json "${files[@]}"
+      - name: Publish verified assets for the requested release branch
+        if: github.event_name == 'push'
+        run: |
+          test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
+          gh release edit "$RELEASE_TAG" --draft=false --latest
+          gh release view "$RELEASE_TAG" --json url,isDraft --jq '{url,isDraft}'
