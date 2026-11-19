@@ -1,5 +1,8 @@
 name: Windows released installer
 on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/windows-installer.yml']
   release:
     types: [published]
   workflow_dispatch:
@@ -21,13 +24,25 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
+      - name: Select published installer for verification
+        id: target
+        shell: pwsh
+        run: |
+          $tag = $env:RELEASE_TAG
+          if (!$tag) {
+            $tag = gh release view --repo $env:GH_REPO --json tagName --jq .tagName
+            if ($LASTEXITCODE -ne 0 -or !$tag) { throw 'Could not identify the latest published release' }
+          }
+          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          "tag=$tag" >> $env:GITHUB_OUTPUT
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: ${{ steps.target.outputs.tag }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
       - name: Publish the pinned EXE if this release has no Windows asset yet
+        if: github.event_name != 'push'
         shell: pwsh
         run: |
           $release = Get-Content desktop/release.json | ConvertFrom-Json
@@ -52,6 +67,7 @@ jobs:
           if ($process.ExitCode -ne 0) { throw 'Previous version installation failed' }
           $installedVersion = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf).DisplayVersion
           if ($installedVersion -ne '1.5.1') { throw 'Previous installed version mismatch' }
+          "PAPERLEAF_PREVIOUS_VERSION=$installedVersion" >> $env:GITHUB_ENV
           $profile = Join-Path $env:APPDATA 'Paperleaf'
           New-Item -ItemType Directory -Force $profile | Out-Null
           Set-Content -Path (Join-Path $profile 'upgrade-test-marker.txt') -Value 'synthetic retained profile fixture'
@@ -92,7 +108,7 @@ jobs:
           Write-Output 'PASS: desktop and Start Menu shortcuts use the verified Paperleaf brand icon.'
           "PAPERLEAF_TEST_CODEX_BINARY=$install\resources\codex\bin\codex.exe" >> $env:GITHUB_ENV
           "PAPERLEAF_TEST_DESKTOP=$install\Paperleaf.exe" >> $env:GITHUB_ENV
-          Write-Output "PASS: released EXE upgraded 1.5.0 to $installedVersion and preserved profile data."
+          Write-Output "PASS: released EXE upgraded $env:PAPERLEAF_PREVIOUS_VERSION to $installedVersion and preserved profile data."
       - name: Check paragraph grouping and public Codex events
         run: |
           node scripts/check-argument-paragraphs.mjs
