@@ -1,4 +1,5 @@
 'use client';
+import './argument-checks.css';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowLeft,BookOpen,Download,FileCode2,CloudUpload,CloudDownload,LoaderCircle,Pause,Play,Settings2,RotateCcw,ArrowRight,Check,AlertCircle} from 'lucide-react';
 import {Button} from '@/components/ui/button';
@@ -15,7 +16,7 @@ import {useAccount} from './account-provider';
 import {api,download,type Paper} from '@/lib/client';
 import type {PageText} from '@/lib/ai-types';
 import type {ArgumentStudy} from '@/lib/argument-types';
-import {newArgumentStudy,generateArgumentStudy,studyComplete,studyParagraphs,validateArgumentStudy,argumentBatches} from '@/lib/argument-study.mjs';
+import {newArgumentStudy,generateArgumentStudy,studyComplete,studyParagraphs,validateArgumentStudy,argumentBatches,inspectArgumentParagraphs} from '@/lib/argument-study.mjs';
 import {argumentHtml} from '@/lib/argument-html.mjs';
 import {argumentDimensions} from '@/companion/argument.mjs';
 import {loadArgumentFonts} from '@/lib/argument-fonts';
@@ -33,6 +34,7 @@ export default function ArgumentStudyWorkspace({paper,getBodyPages,onClose,demo=
  const mounted=useRef(true),controller=useRef<AbortController|null>(null),frame=useRef<HTMLIFrameElement>(null),scroll=useRef(0),cacheQueue=useRef<Promise<unknown>>(Promise.resolve());
  const owner=account?.id||(demo?'demo':'');
  const completed=studyComplete(study),done=studyParagraphs(study).length;
+ const findings=useMemo(()=>inspectArgumentParagraphs(study?.sources||[]),[study?.sources]);
  const withCourse=useMemo(()=>study?{...study,course}:null,[study,course]);
  const html=useMemo(()=>withCourse?argumentHtml(withCourse,fonts):'',[withCourse,fonts]);
  useEffect(()=>{try{scroll.current=frame.current?.contentWindow?.scrollY||0}catch{}if(!html){setPreview('');return;}const url=URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'}));setPreview(url);return()=>URL.revokeObjectURL(url)},[html]);
@@ -93,10 +95,10 @@ export default function ArgumentStudyWorkspace({paper,getBodyPages,onClose,demo=
  }
  async function generate(){
   if(running||!study)return;
-  if(study.paragraphVersion!==2){await prepare();return;}
+  if(study.paragraphVersion!==3){await prepare();return;}
   if(!c.ready){c.open();return;}
   const version=(desktopBridge()?.version||c.status?.version||'').split('.').map(Number);
-  if(version[0]===1&&(version[1]<5||version[1]===5&&(version[2]||0)<1)){setError('请在桌面下载页更新至 Paperleaf 1.5.1 后开始精读，以使用自然段和详细执行记录。');return;}
+  if(version[0]===1&&(version[1]<5||version[1]===5&&(version[2]||0)<1)){setError('请先在桌面下载页更新 Paperleaf，再开始按自然段精读。');return;}
   const ctrl=new AbortController();controller.current=ctrl;setRunning(true);setError('');
   try{
    await generateArgumentStudy({study:{...study,course},runTask:traceArgumentTasks(study,runCodexTask,(a,flush)=>recordAttempt(study.created,a,flush)),signal:ctrl.signal,model:settings.model,effort:settings.effort,onChange:commit,onProgress:(_j,message)=>{if(mounted.current&&!ctrl.signal.aborted)setLabel(message)}});
@@ -122,10 +124,12 @@ export default function ArgumentStudyWorkspace({paper,getBodyPages,onClose,demo=
    <aside id="argument-settings" className="argument-settings" hidden={!controls}>
     <div className="argument-source-title"><span>当前文献</span><h3>{paper.title}</h3><p>{paper.pages} 页 · {paper.authors||'未记录作者'}</p></div>
     <FieldGroup><Field><FieldLabel htmlFor="argument-course">课程信息 <span className="argument-optional">可选</span></FieldLabel><Input id="argument-course" maxLength={200} value={course} disabled={running} onChange={e=>setCourse(e.target.value)} placeholder="如：科研方法 · 第 6 周研讨"/><FieldDescription>显示在 HTML 顶部，可留空用于个人精读。</FieldDescription></Field><Field><FieldLabel htmlFor="argument-scope">分析范围</FieldLabel><select id="argument-scope" value={mode} disabled={loading||running} onChange={e=>void prepare(e.target.value as 'body'|'all')}><option value="body">论文正文（含摘要）</option><option value="all">全部可提取文字</option></select><FieldDescription>正文模式过滤识别到的页眉、图表标题和参考文献；不识别图片与扫描页。</FieldDescription></Field></FieldGroup>
-    {study&&study.paragraphVersion!==2&&<Alert><BookOpen/><AlertTitle>这份精读使用旧版分段</AlertTitle><AlertDescription>可以先导出当前结果，再按自然段重新提取和翻译。<Button variant="link" size="sm" disabled={loading||running} onClick={()=>void prepare()}>按自然段重新提取</Button></AlertDescription></Alert>}
+    {study&&study.paragraphVersion!==3&&<Alert><BookOpen/><AlertTitle>这份精读使用旧版分段</AlertTitle><AlertDescription>可以先导出当前结果，再按自然段重新提取和翻译。<Button variant="link" size="sm" disabled={loading||running} onClick={()=>void prepare()}>按自然段重新提取</Button></AlertDescription></Alert>}
     <TaskModelSettings task="argument" settings={settings} disabled={running}/>
     {loading?<p className="argument-loading"><LoaderCircle className="spin"/>正在提取并核对全文…</p>:study&&<details className="argument-coverage"><summary>检查提取范围 · {study.sources.length} 段 / {argumentBatches(study.sources).length} 批</summary><p>{study.sources.reduce((n,p)=>n+p.original.length,0).toLocaleString()} 字符。完整原文可在右侧预览核对。</p>{study.excluded.map(p=><p key={p.page}>第 {p.page} 页：{p.reason}</p>)}{!study.excluded.length&&<p>所有页面均有可提取文字。</p>}</details>}
-    <div className="argument-run-actions">{running?<Button variant="outline" onClick={()=>controller.current?.abort()}><Pause data-icon="inline-start"/>暂停精读</Button>:<Button disabled={loading||!study||completed} onClick={()=>void generate()}>{completed?<Check data-icon="inline-start"/>:<Play data-icon="inline-start"/>}{completed?'精读已完成':study?.paragraphVersion!==2?'按自然段重新提取':!c.ready?'连接 Codex 后生成':done?'继续精读':'开始全文精读'}</Button>}<p>分批翻译并批注，最后整理全文论证。使用已登录 Codex 账号额度；长论文可能需要较长时间。</p></div>
+    {study&&study.paragraphVersion===3&&<details className="argument-coverage argument-checks"><summary>分段检查 · {findings.length?findings.length+' 处建议核对':'未发现可疑片段'}</summary>
+     {findings.length?<ul>{findings.map(f=><li key={f.id}><b>第 {f.page} 页 · {f.reason}</b><p>{f.original}</p><Button variant="link" size="sm" onClick={()=>frame.current?.contentDocument?.getElementById(f.id)?.scrollIntoView({block:'center'})}>定位原文</Button></li>)}</ul>:<p>已检查独立编号、短句残片和疑似表格行。</p>}</details>}
+    <div className="argument-run-actions">{running?<Button variant="outline" onClick={()=>controller.current?.abort()}><Pause data-icon="inline-start"/>暂停精读</Button>:<Button disabled={loading||!study||completed} onClick={()=>void generate()}>{completed?<Check data-icon="inline-start"/>:<Play data-icon="inline-start"/>}{completed?'精读已完成':study?.paragraphVersion!==3?'按自然段重新提取':!c.ready?'连接 Codex 后生成':done?'继续精读':'开始全文精读'}</Button>}<p>分批翻译并批注，最后整理全文论证。使用已登录 Codex 账号额度；长论文可能需要较长时间。</p></div>
     {!c.ready&&<Alert><BookOpen/><AlertTitle>连接你的阅读搭档</AlertTitle><AlertDescription>生成需要先登录 Codex。已完成的精读仍可预览和导出。<Button variant="link" size="sm" onClick={c.open}>连接 Codex <ArrowRight data-icon="inline-end"/></Button></AlertDescription></Alert>}
     <div className="argument-storage"><p role="status">{localStatus||'完成的批次自动保存在本机。'}</p><p>{demo?'试读结果仅保留在本机。':cloudStatus||'云端不会自动保存此精读，点击「保存到云端」后同步。'}</p><div><Button variant="ghost" size="sm" disabled={demo||saving||running} onClick={()=>void restoreCloud()}><CloudDownload data-icon="inline-start"/>载入云端</Button><Button variant="ghost" size="sm" disabled={loading||running} onClick={()=>void prepare()}><RotateCcw data-icon="inline-start"/>按自然段重新提取</Button></div></div>
    </aside>

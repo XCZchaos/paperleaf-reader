@@ -50,8 +50,46 @@ if(process.argv[2]){
   const real=natural(raw);const eq=real.sources.filter(p=>p.page===4&&p.original.includes('(4)'));
   assert.equal(eq.length,1);assert(/reconstruction loss:/i.test(eq[0].original));assert(/\(4\).*The loss is minimized/s.test(eq[0].original));
   assert(eq[0].original.indexOf('∑')<eq[0].original.indexOf('(4)'));assert(!eq[0].original.includes('4.2 Physics'));
+  if(doc.numPages===12){
+   const wrapped=real.sources.filter(p=>p.page===4&&p.original.startsWith('To address this,'));
+   assert.equal(wrapped.length,1);assert.match(wrapped[0].original,/neural field-based representations, such as/);
+   assert.match(wrapped[0].original,/Symmetric Representation \(Sec\. 4\.1\)\.$/);
+   assert(!real.sources.some(p=>p.original.includes('128 (left) and super-resolution')));
+   assert(real.sources[0].page===1,'retain unlabelled abstract');
+  }
   const groups=argumentBatches(real.sources);
   assert(groups.flat().filter(p=>p.id===eq[0].id).length===1);
   console.log(JSON.stringify({paper:'MIND',pages:doc.numPages,paragraphs:real.sources.length,formula:4,page:4,paragraphId:eq[0].id,checks:'loss definition, sum, number and following explanation in one paragraph; next section separate'}));
  }finally{await doc.destroy()}
 }
+
+// The same fixtures cover different fonts, gutter widths and content stream
+// orders without relying on a particular title, identifier or page number.
+const {inspectArgumentParagraphs}=await import('../lib/argument-study.mjs');
+const {pageGutters}=await import('../lib/pdf-columns.mjs');
+for(const lanes of [[50],[45,335],[52,228,405]]){
+ const width=lanes.length===1?480:lanes.length===2?230:152;
+ const items=[];
+ for(let row=0;row<8;row++)for(const [column,x] of lanes.entries())items.push(line(`Column ${column+1} continues on line ${row+1}.`,x,680-row*13,width,10));
+ const blocks=pdfBodyBlocks(items,615);
+ assert.deepEqual(blocks.map(b=>b.column),lanes.map((_,i)=>i),'reading order for '+lanes.length+' columns');
+ for(const [i,b] of blocks.entries())assert(!b.text.includes(`Column ${(i+1)%lanes.length+1} `)||lanes.length===1);
+}
+assert.deepEqual(pageGutters([],615),[]);
+const withFont=(text,x,y,w,h,font)=>({...line(text,x,y,w,h),fontName:font});
+const sideCaption=[withFont('Figure 8: The measured specimen',30,650,104,8,'caption'),withFont('is shown under load.',30,640,98,8,'caption')];
+const prose=[withFont('The specimen changes its shape',150,667,145,10,'body'),withFont('when the applied field increases,',150,655,145,10,'body'),withFont('and its response becomes continu-',150,643,145,10,'body'),withFont('ous under repeated measurements.',30,630,265,10,'body')];
+for(const input of [[...sideCaption,...prose],[...prose,...sideCaption].sort((a,b)=>b.transform[5]-a.transform[5])]){
+ const pages=extractPaperBody([{page:1,height:800,blocks:pdfBodyBlocks(input,600)}]);
+ const body=newArgumentStudy(paper,pages),all=newArgumentStudy(paper,pages,'all');
+ assert.equal(body.sources.length,1);
+ assert.match(body.sources[0].original,/increases, and its response becomes continuous under repeated/);
+ assert(!body.sources[0].original.includes('shown under load'));
+ assert.equal(all.sources.filter(p=>p.original.startsWith('Figure 8:')&&p.original.endsWith('under load.')).length,1);
+ assert(!all.sources.some(s=>s.original.includes('under load.')&&s.original.includes('applied field')));
+}
+const references=extractPaperBody([{page:1,height:800,blocks:[col('Body text reports a finding.',0,725),col('[1] A. Author, Journal 12 (2001).',0,680),col('[2] B. Author, Journal 15 (2002).',0,658),col('[3] C. Author, Journal 16 (2003).',0,635),col('p. 321.',0,613),col('Appendix A',0,590),col('Supplementary results follow.',0,560)]}]);
+assert.deepEqual(references[0].bodyParagraphs,['Body text reports a finding.','Appendix A','Supplementary results follow.']);
+const flagged=inspectArgumentParagraphs(['. (8)','terms on the left,','6 7 8 9 controls','A short but complete claim.','Figure 1: Some data','• One bullet'].map((original,i)=>({id:'p1-'+(i+1),page:1,original})));
+assert.deepEqual(flagged.map(x=>x.id),['p1-1','p1-2','p1-3']);
+console.log('PASS: independent 1/2/3-column layouts, wrapped caption/prose with both source orders, intact words, independent captions in all-text mode, headingless bibliography and flagged fragments.');

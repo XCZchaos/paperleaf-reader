@@ -29,3 +29,21 @@ jobs:
           node scripts/check-companion.mjs
       - name: Verify updater integrity and launch gating
         run: node scripts/check-updater.mjs
+  paper-layouts:
+    name: Check paper layouts and paragraph boundaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install the production PDF extractor
+        run: |
+          npm install --prefix work/layout-tools --no-save --no-audit --no-fund pdfjs-dist@5.7.284
+          mkdir -p node_modules
+          ln -s ../work/layout-tools/node_modules/pdfjs-dist node_modules/pdfjs-dist
+      - name: Check generated layouts and public research PDFs
+        run: |
+          node scripts/check-argument-paragraphs.mjs
+          node scripts/check-paper-layouts.mjs

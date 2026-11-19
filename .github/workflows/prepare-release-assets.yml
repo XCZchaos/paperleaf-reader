@@ -51,13 +51,33 @@ jobs:
           for arch in arm64 x64; do
             (cd "installers/Paperleaf-macOS-$arch" && sha256sum -c "Paperleaf-${RELEASE_TAG#v}-macOS-$arch.dmg.sha256" && sha256sum -c "Paperleaf-${RELEASE_TAG#v}-macOS-$arch.pkg.sha256")
           done
-          node scripts/fetch-release-installer.mjs
+          version=${RELEASE_TAG#v}
+          exe="Paperleaf-Setup-$version-Windows-x64.exe"
+          existing=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
+          if grep -Fxq "$exe" <<< "$existing"; then
+            mkdir -p work/installer
+            gh release download "$RELEASE_TAG" --pattern "$exe" --dir work/installer
+          else
+            node scripts/fetch-release-installer.mjs
+          fi
+          expected=$(node -p 'require("./desktop/release.json").sha256')
+          echo "$expected  work/installer/$exe" | sha256sum -c -
+          for arch in arm64 x64; do
+            pkg="installers/Paperleaf-macOS-$arch/Paperleaf-$version-macOS-$arch.pkg"
+            pinned=$(node -p 'require("./desktop/release.json").macPackages[process.argv[1]].sha256' "$arch")
+            echo "$pinned  $pkg" | sha256sum -c -
+          done
       - name: Attach installers to draft without publishing
         shell: bash
         run: |
           set -euo pipefail
           # Recheck immediately before upload. This workflow never publishes.
           test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
-          gh release upload "$RELEASE_TAG" work/installer/*.exe installers/*/*.dmg installers/*/Paperleaf-*.pkg installers/*/*.sha256 --clobber
+          existing=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
+          for file in work/installer/*.exe installers/*/*.dmg installers/*/Paperleaf-*.pkg installers/*/*.sha256; do
+            if ! grep -Fxq "$(basename "$file")" <<< "$existing"; then
+              gh release upload "$RELEASE_TAG" "$file"
+            fi
+          done
           test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
           gh release view "$RELEASE_TAG" --json isDraft,assets --jq '{draft:.isDraft,files:[.assets[].name]}'

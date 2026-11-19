@@ -1,15 +1,25 @@
 {
-  "version": "1.5.1",
+  "version": "1.5.2",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
-  "sizeMB": 200.8,
-  "sha256": "01f4fdc37c604589a2a59ee6980290f4222f6c93e3fcb478a3fb571a2caa178a",
-  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.1/Paperleaf-Setup-1.5.1-Windows-x64.exe",
-  "date": "2026-11-18",
+  "sizeMB": 200.7,
+  "sha256": "ab00043e9fb9597d29eda63b7dc431a0464afcb94bbb4a7765e20af9f1bd2e77",
+  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.2/Paperleaf-Setup-1.5.2-Windows-x64.exe",
+  "date": "2026-11-19",
   "notes": [
-    "论文论证精读按自然段对照翻译，保留跨行公式、公式编号及变量说明。",
-    "跨栏、跨页的正文续接后统一翻译和批注，跨页段落显示来源页码范围。",
-    "查看 Codex 进展支持按批次回看来源范围、模型、公开状态、流式接收、重试及最终校验。",
-    "已有精读可继续阅读或导出；按自然段重新提取后，按新版段落生成。"
-  ]
+    "精读与全文正文提取根据文字坐标和栏间距识别单栏、双栏和三栏，单独归集绕排图注。",
+    "精读设置新增分段检查，列出疑似孤立公式、断句和表格行，可按页定位原文。",
+    "改进无标题摘要和参考文献的识别，已保存的旧精读可以重新提取。",
+    "Mac 客户端按 Apple 芯片或 Intel 下载对应的 PKG，校验后打开系统安装器。"
+  ],
+  "macPackages": {
+    "arm64": {
+      "size": 259060487,
+      "sha256": "0a5779efce7ce44c1ef42ceb88a90575513b20a3d536de38940a04de0f099cc8"
+    },
+    "x64": {
+      "size": 276216061,
+      "sha256": "29fcf5388f97b92045aeee7a803e2281c0c701cc759cfcf6f81dc69e758ec7de"
+    }
+  }
 }

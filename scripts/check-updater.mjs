@@ -26,6 +26,21 @@ try{
  const mac=new DesktopUpdater({version:'1.2.0',site:'https://fixture.invalid',dataDir:directory,platform:'darwin',arch:'arm64',fetch:async()=>Response.json(manifest),openExternal:async url=>{macUrl=url},launch:async()=>{throw Error('Must not execute a Windows installer on macOS')}});
  assert.equal((await mac.check()).status,'available');assert.equal(mac.snapshot().manualUpdate,true);assert.equal(mac.snapshot().release.size,0);
  await mac.download();assert.equal(macUrl,'https://github.com/XCZchaos/paperleaf-reader/releases/tag/v1.2.1');assert.equal(mac.snapshot().status,'available');await assert.rejects(mac.install(),/下载/);
+ const perChip={arm64:Buffer.from('arm64 package fixture'),x64:Buffer.from('intel package fixture')};
+ manifest.macPackages=Object.fromEntries(Object.entries(perChip).map(([arch,data])=>[arch,{size:data.length,sha256:createHash('sha256').update(data).digest('hex')}]));
+ for(const arch of ['arm64','x64']){
+  let served=perChip[arch],calls=0;const expected=`https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.2.1/Paperleaf-1.2.1-macOS-${arch}.pkg`;
+  const u=new DesktopUpdater({version:'1.2.0',site:'https://fixture.invalid',platform:'darwin',arch,dataDir:directory,fetch:async (url,options)=>{
+   if(url.endsWith('desktop-update.json'))return Response.json(manifest);
+   assert.equal(url,expected);assert.equal(options.credentials,'omit');assert.equal(options.referrerPolicy,'no-referrer');return new Response(served);
+  },launch:async file=>{assert(file.endsWith('-'+arch+'.pkg'));assert.deepEqual(await readFile(file),perChip[arch]);calls++;}});
+  assert.equal((await u.check()).manualUpdate,false);assert.equal(u.snapshot().release.size,served.length);assert.equal(u.snapshot().installMethod,'macos-pkg');
+  served=perChip[arch==='x64'?'arm64':'x64'];assert.equal((await u.download()).status,'error');assert.equal(calls,0);
+  served=perChip[arch];assert.equal((await u.download()).status,'ready');await writeFile(u.file,'modified');assert.equal((await u.install()).status,'error');assert.equal(calls,0);
+  assert.equal((await u.download()).status,'ready');await u.install();assert.equal(calls,1);
+ }
+ const invalid=structuredClone(manifest);invalid.macPackages.arm64.sha256='not-a-digest';assert.throws(()=>validateRelease(invalid));
+ console.log('PASS: per-chip PKGs use fixed release URLs without cloud credentials; swapped packages and post-download tampering are rejected.');
  console.log('PASS: macOS update detection uses release notes and a fixed official release URL; never runs Windows EXE.');
  console.log('PASS: version ordering, manifest boundaries, same-session download, SHA-256, tampering rejection, launch gate, auth failure and cancellation.');
 }finally{await rm(directory,{recursive:true,force:true})}
