@@ -40,12 +40,12 @@ if(process.env.GITHUB_ACTIONS==='true'&&process.env.RUNNER_ENVIRONMENT==='github
  const {Readable}=await import('node:stream');
  const {pipeline}=await import('node:stream/promises');
  const {homedir}=await import('node:os');
- const appPath='/Applications/Paperleaf.app',old='1.5.1',oldName=`Paperleaf-${old}-macOS-${arch}.dmg`;
+ const appPath='/Applications/Paperleaf.app',old='1.5.2',oldName=`Paperleaf-${old}-macOS-${arch}.dmg`;
  assert.equal(await fs.lstat(appPath).catch(e=>{if(e.code==='ENOENT')return null;throw e}),null,'Runner already contains Paperleaf');
  const oldFile=path.join(work,oldName),prevMount=path.join(work,'previous');
  const response=await fetch(`https://github.com/XCZchaos/paperleaf-reader/releases/download/v${old}/${oldName}`);
  assert(response.ok);await pipeline(Readable.fromWeb(response.body),createWriteStream(oldFile,{flags:'wx'}));
- const priorHash={arm64:'13439b55fa2b0986cbaa084d1c6d1de13f2572eddf10da234b3c04707734501d',x64:'eef7d2709486bf3dc72e48268320e7848c80aae184d27e29cb56376eae50f65b'}[arch];
+ const priorHash={arm64:'d9211e782865196544c8b64e8f797b9672754de6689ce2043ebc13dcbaed52c1',x64:'afbe2708ff246cd6cc942a3f336fc61fea35b7875c780cfcc405e89df9b48b73'}[arch];
  assert.equal(createHash('sha256').update(await fs.readFile(oldFile)).digest('hex'),priorHash);
  await fs.mkdir(prevMount);run('hdiutil',['attach','-nobrowse','-readonly','-mountpoint',prevMount,oldFile]);
  try{run('sudo',['-n','/usr/bin/ditto',path.join(prevMount,'Paperleaf.app'),appPath]);}finally{run('hdiutil',['detach',prevMount]);}

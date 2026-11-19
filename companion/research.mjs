@@ -19,7 +19,7 @@ export function validateRequest(raw) {
   if (length > MAX_CONTEXT) throw Error('阅读内容超过 16 万字符，请缩小页码范围');
   if (!pages.some(p => p.text.trim()) && !selection) throw Error('未提取到文字；扫描件需要先进行 OCR');
   const argument=raw.kind==='argument'?validateArgumentInput(raw.argument):undefined;
-  if(argument?.phase==='paragraphs'&&argument.paragraphs.some(p=>!pages.some(page=>page.page===p.page&&page.text.includes(p.original))))throw Error('精读原文与所提供页面不一致');
+  if(argument&&argument.phase!=='overview'&&argument.paragraphs.some(p=>!pages.some(page=>page.page===p.page&&page.text.includes(p.original))))throw Error('精读原文与所提供页面不一致');
   const history = Array.isArray(raw.history) ? raw.history : [];
   if (history.length > 40 || history.some(x => !['user', 'assistant'].includes(x.role) || typeof x.text !== 'string' || x.text.length > 12000) || history.reduce((n, x) => n + x.text.length, 0) > 48000) throw Error('对话上下文太长，请开启新问题');
   const slideCount = [6, 8, 10, 12].includes(raw.slideCount) ? raw.slideCount : 8;

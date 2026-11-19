@@ -1,4 +1,4 @@
-import {argumentSchema,validateArgumentBatch,validateArgumentOverview} from './argument.mjs';
+import {argumentSchema,validateBoundaryDecisions,validateArgumentBatch,validateArgumentOverview} from './argument.mjs';
 import http from 'node:http';
 import {spawn} from 'node:child_process';
 import {randomBytes,timingSafeEqual,createHash} from 'node:crypto';
@@ -67,7 +67,10 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         try{
           if(j.kind==='argument'){
             const value=JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,''));
-            if(j.argumentInput.phase==='paragraphs'){
+            if(j.argumentInput.phase==='segmentation'){
+              j.argument=validateBoundaryDecisions(value,j.argumentInput);
+              progressEvent(j,'verified','stage','已核对 AI 分段决定',j.argument.decisions.length+' 个原文片段已逐一对应');
+            }else if(j.argumentInput.phase==='paragraphs'){
               j.argument=validateArgumentBatch(value,j.argumentInput.paragraphs);
               const count=j.argument.paragraphs.reduce((n,p)=>n+p.highlights.length,0);
               progressEvent(j,'verified','stage','Paperleaf 已核对逐段结果',`${j.argument.paragraphs.length} 段译文与批注 · ${count} 处原文高亮匹配 · ${j.argument.skippedHighlights} 处高亮跳过`);
@@ -146,7 +149,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         const a=await account();let m=[],warning='';
         if(a){try{m=await models(a)}catch{warning='模型列表暂时不可用，可以使用 Codex 默认模型'}
           await readRates(u.searchParams.get('refresh')==='1');}
-        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,rateLimitsByLimitId:a?ratesById:null,rateLimitsUpdatedAt:a?rateTime:null,rateLimitsWarning:a?rateWarning:'',ordinaryUsageAllowed:a?ordinaryUsageAllowed:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,connection:CONNECTION_INFO,version:'1.5.2'});return;
+        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,rateLimitsByLimitId:a?ratesById:null,rateLimitsUpdatedAt:a?rateTime:null,rateLimitsWarning:a?rateWarning:'',ordinaryUsageAllowed:a?ordinaryUsageAllowed:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,connection:CONNECTION_INFO,version:'1.5.3'});return;
       }
       if(req.method==='POST'&&u.pathname==='/login'){
         if([...jobs.values()].some(active)){send(res,409,{error:'请先停止当前生成任务，再登录其他账号'});return;}
