@@ -71,7 +71,8 @@ async function checks(){
  assert.equal(argumentSchema('paragraphs').properties.paragraphs.items.additionalProperties,false);
  // Exercise the actual bridge serialization/notification/schema path, with an
  // explicitly fake RPC instead of passing fixture results directly to the UI.
- class FakeRPC extends EventEmitter{async request(method,params){if(method==='account/read')return{account:{type:'chatgpt',email:'fixture@invalid',planType:'fixture'}};if(method==='model/list')return{data:[{model:'fixture',displayName:'fixture',isDefault:true,supportedReasoningEfforts:[]} ]};if(method==='thread/start')return{thread:{id:'argument-thread'},model:'fixture'};if(method==='turn/start'){assert.deepEqual(params.outputSchema,argumentSchema('paragraphs'));return{turn:{id:'turn',status:'inProgress'}}}return{}}close(){}}
+ let expectedPhase='paragraphs';
+ class FakeRPC extends EventEmitter{async request(method,params){if(method==='account/read')return{account:{type:'chatgpt',email:'fixture@invalid',planType:'fixture'}};if(method==='model/list')return{data:[{model:'fixture',displayName:'fixture',isDefault:true,supportedReasoningEfforts:[]} ]};if(method==='thread/start')return{thread:{id:'argument-thread'},model:'fixture'};if(method==='turn/start'){assert.deepEqual(params.outputSchema,argumentSchema(expectedPhase));if(expectedPhase==='segmentation')assert(params.input[0].text.includes('自然段边界'));return{turn:{id:'turn',status:'inProgress'}}}return{}}close(){}}
  const rpc=new FakeRPC(),bridge=createBridge({rpc,workdir:'/tmp/argument-fixture',port:0});
  try{await new Promise(r=>bridge.server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${bridge.server.address().port}`;
  const post=await fetch(base+'/jobs',{method:'POST',headers:{Origin:SITE,'X-Paperleaf-Token':bridge.token,'Content-Type':'application/json'},body:JSON.stringify(payload)});assert.equal(post.status,202);await new Promise(r=>setImmediate(r));
@@ -81,10 +82,27 @@ async function checks(){
  for(const id of ['source','model','connected','turn','analysis-reason','usage','retry-1','output','verified','stage-completed'])assert(job.events.some(e=>e.id===id),id);
  assert.equal(job.events.filter(e=>e.id==='output').length,1);assert.match(job.events.find(e=>e.id==='output').text,/字符/);
  assert.equal(job.reasoningSummary,'可展示的摘要');assert(!JSON.stringify(job).includes('PRIVATE_REASONING_FIXTURE'));
+ expectedPhase='segmentation';
+ const blocks=[{id:'p1-1',page:1,original:'Earlier findings establish a baseline.'},{id:'p2-1',page:2,original:'The following words continue it. A separate experiment followed.'}];
+ const segment={...payload,argument:{phase:'segmentation',previous:null,next:null,paragraphs:blocks},pages:blocks.map(b=>({page:b.page,text:b.original}))};
+ const decisions=blocks.map((p,i)=>({id:p.id,before:i?'join':'keep',splits:i?['A separate experiment']:[],reason:i?'前一句续接上文，后一句引出另一个实验。':''}));
+ const headers={Origin:SITE,'X-Paperleaf-Token':bridge.token,'Content-Type':'application/json'};
+ for(const valid of [true,false]){
+  const id=crypto.randomUUID();
+  const posted=await fetch(base+'/jobs',{method:'POST',headers,body:JSON.stringify({...segment,id})});
+  assert.equal(posted.status,202);await new Promise(r=>setImmediate(r));
+  const text=JSON.stringify({decisions:valid?decisions:[decisions[0],{...decisions[1],splits:['words absent from PDF']}]});
+  const notify=(method,params)=>rpc.emit('notification',{method,params:{threadId:'argument-thread',...params}});
+  notify('item/completed',{item:{id:'boundary-output',type:'agentMessage',phase:'final_answer',text}});
+  notify('turn/completed',{turn:{id:'turn',status:'completed'}});
+  const j=await (await fetch(base+'/jobs/'+id,{headers})).json();
+  if(valid){assert.equal(j.status,'completed',j.error);assert.deepEqual(j.argument.decisions,decisions);assert(j.events.some(e=>e.id==='verified'&&e.title.includes('分段')))}
+  else{assert.equal(j.status,'error');assert(!j.argument);assert(!j.events.some(e=>e.id==='verified'))}
+ }
  }finally{await bridge.close();bridge.server.closeAllConnections()}
  await fs.mkdir('work/argument',{recursive:true});await fs.writeFile('work/argument/fixture.json',JSON.stringify(fixture,null,2));
  const fonts={};for(const [key,file] of [['lora400','lora-latin-400-normal.woff2'],['lora600','lora-latin-600-normal.woff2'],['ibm400','ibm-plex-sans-latin-400-normal.woff2'],['ibm600','ibm-plex-sans-latin-600-normal.woff2']])fonts[key]=(await fs.readFile('public/fonts/'+file)).toString('base64');for(const [key,file] of [['loraLicense','lora-OFL.txt'],['ibmLicense','ibm-plex-sans-OFL.txt']])fonts[key]=await fs.readFile('public/fonts/'+file,'utf8');
  const standalone=argumentHtml(fixture,fonts);assert.equal((standalone.match(/data:font\/woff2;base64/g)||[]).length,4);assert(!/(?:src|href)="https?:\/\//.test(standalone));await fs.writeFile('work/argument/fixture.html',standalone);
- console.log('PASS: actual bridge/schema path with synthetic RPC; paragraph coverage, exact and repeated highlights, malformed results, cancellation/resume, source limits, safe single-file HTML, embedded fonts and linked overview. Not a live-model quality test.');
+ console.log('PASS: production bridge with synthetic RPC verified semantic output schema, a real join/split event and rejection of an invented split. Also checked paragraph coverage, exact and repeated highlights, malformed results, cancellation/resume, source limits, safe single-file HTML, embedded fonts and linked overview. Not a live-model quality test.');
 }
 if(process.argv[1]?.endsWith('check-argument.mjs'))await checks();

@@ -6,15 +6,21 @@
 
 **从一篇英文 PDF，到读懂、记住，再到讲清楚。**
 
-Paperleaf 将文献管理、PDF 阅读、中英对照、研究笔记、单词积累和 GPT 问答放在同一张工作台上。资料由账号云端保存，Windows 桌面版内置 Codex，通过官方账号授权调用 GPT，帮助你从日常精读走到组会汇报。
+Paperleaf 将文献管理、PDF 阅读、中英对照、研究笔记、单词积累和 GPT 问答放在同一张工作台上。资料由账号云端保存，Windows 和 macOS 桌面版内置 Codex，通过官方账号授权调用 GPT，帮助你从日常精读走到组会汇报。
 
-[桌面版下载与说明](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [下载 Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.2/Paperleaf-Setup-1.5.2-Windows-x64.exe) · [最新发行版](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [English](README.en.md)
+[桌面版下载与说明](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [下载 Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.3/Paperleaf-Setup-1.5.3-Windows-x64.exe) · [最新发行版](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [English](README.en.md)
 
 | 当前版本 | 桌面平台 | 界面 | 项目状态 |
 | --- | --- | --- | --- |
-| **1.5.2** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · 复古纸页 · 夜读主题 | 公开源码，持续迭代；桌面预览版 |
+| **1.5.3** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · 复古纸页 · 夜读主题 | 公开源码，持续迭代；桌面预览版 |
 
 Paperleaf 是独立开发的应用，并非 OpenAI 官方产品。模型访问与额度取决于你已登录的 Codex 账号。
+
+## 1.5.3 · AI 分段与文献库导航
+
+「论证精读」和「全文中英对照」都可以在翻译前让 Codex 判断自然段。除了跨栏、跨页的续句，模型也会检查同一块原文里是否混进了另一段。可以在「精读设置 → 仅运行 AI 分段」中先看判定和理由，再决定是否生成译文及批注。
+
+文献库整列支持独立滚动。窗口较矮或研究主题较多时，可以从顶部一路滚到「版本与更新」、Codex 和账号设置。键盘聚焦左栏后，Home / End 可直达两端。[用法和验证记录](docs/releases/v1.5.3.md)
 
 ## 1.5.2 · 多种版式的分段检查与 Mac 更新
 
@@ -124,11 +130,11 @@ Paperleaf 是独立开发的应用，并非 OpenAI 官方产品。模型访问�
 | Windows 桌面版 | 管理文献、阅读 PDF、笔记、翻译和 GPT 对话 |
 | 云端账号 | 保存个人文献与记录，供不同电脑上的桌面客户端同步 |
 
-无需另外安装 Node.js 或运行命令。macOS / Linux 当前没有正式桌面安装包。仓库保留[本机连接程序](companion/README.md)作为技术实现，但公共网站不再提供独立网页阅读入口。
+Windows 和 macOS 安装包都内置 Codex。Mac 用户按芯片选择 PKG 安装，或将 DMG 中的 Paperleaf 拖入「应用程序」。[桌面下载页](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/desktop)
 
 ### Windows 首次使用
 
-1. 下载 [Paperleaf-Setup-1.5.2-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.2/Paperleaf-Setup-1.5.2-Windows-x64.exe)，双击安装。安装包约 **200.7 MiB**，无需解压 ZIP。
+1. 下载 [Paperleaf-Setup-1.5.3-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.3/Paperleaf-Setup-1.5.3-Windows-x64.exe)，双击安装。安装包约 **201 MiB**，无需解压 ZIP。
 2. 打开 Paperleaf，先通过 ChatGPT 验证网站访问身份，再注册或登录 Paperleaf 账号。为 Paperleaf 设置独立密码，并保存只显示一次的恢复码。
 3. 打开“连接 Codex”，点击“使用 ChatGPT 登录”，在系统浏览器完成官方授权，返回阅读器。
 4. 点击“测试 GPT”，确认能够收到真实回复；此操作会消耗少量账号额度，并显示首次输出耗时、总耗时和重试次数。
@@ -358,6 +364,7 @@ node scripts/check-vocabulary-live.mjs --profile /absolute/path/to/already-signe
 
 | 版本 | 重点 |
 | --- | --- |
+| [1.5.3](docs/releases/v1.5.3.md) | 翻译前由 AI 逐段判别，文献库侧栏独立滚动 |
 | [1.5.2](docs/releases/v1.5.2.md) | 分段检查、不同版式与 macOS 按芯片更新 |
 | [1.5.1](docs/releases/v1.5.1.md) | 自然段与跨页公式、按请求回看的 Codex 执行记录 |
 | [1.5.0](docs/releases/v1.5.0.md) | 独立论证精读、离线 HTML、Windows EXE 与双架构 macOS DMG |

@@ -6,15 +6,21 @@
 
 **From an English PDF to understanding, lasting notes, and a research presentation.**
 
-Paperleaf brings PDF reading, bilingual translation, research notes, vocabulary, and GPT conversations into one workspace. Your account stores your library in the cloud. The Windows client bundles Codex and uses official account authorization for model requests.
+Paperleaf brings PDF reading, bilingual translation, research notes, vocabulary, and GPT conversations into one workspace. Your account stores your library in the cloud. The Windows and macOS clients bundle Codex and uses official account authorization for model requests.
 
-[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.2/Paperleaf-Setup-1.5.2-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
+[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.3/Paperleaf-Setup-1.5.3-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
 
 | Current version | Desktop platform | Interface | Status |
 | --- | --- | --- | --- |
-| **1.5.2** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
+| **1.5.3** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
 
 The application interface is primarily Chinese. Paperleaf is an independent application, not an official OpenAI product. Model access and usage limits depend on the signed-in Codex account.
+
+## 1.5.3 · AI paragraph review and a scrollable library sidebar
+
+Argument Study and Full Translation can ask Codex to review every paragraph before translation. It can join continuations across pages and columns, identify a new paragraph inside an extracted block, or flag an ambiguous boundary. In Argument Study, choose **仅运行 AI 分段** to see the decisions and reasons first.
+
+In short windows or long topic lists, scroll the library sidebar independently to reach updates, Codex, and account settings. Focus the sidebar and use Home or End to jump to either end. [Release and verification](docs/releases/v1.5.3.md)
 
 ## 1.5.2 · Paragraph checks and Mac updates
 
@@ -118,11 +124,11 @@ Full-paper translation saves each paragraph, resumes unfinished work, retries fa
 | Windows app | Library, PDF reading, notes, translation and GPT conversations |
 | Cloud account | Private records shared across the user's desktop clients |
 
-No separate Node.js or command-line setup is required. There are no official macOS / Linux desktop installers. The [companion](companion/README.md) remains in the source repository, but the public website no longer exposes a standalone reading workspace.
+The Windows and macOS installers include Codex. Mac users can install the PKG for their architecture or drag Paperleaf from the DMG into Applications. [Desktop downloads](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/desktop)
 
 ### First launch on Windows
 
-1. Download [Paperleaf-Setup-1.5.2-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.2/Paperleaf-Setup-1.5.2-Windows-x64.exe) and run the installer. It is approximately **200.7 MiB**; no ZIP extraction is needed.
+1. Download [Paperleaf-Setup-1.5.3-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.3/Paperleaf-Setup-1.5.3-Windows-x64.exe) and run the installer. It is approximately **201 MiB**; no ZIP extraction is needed.
 2. Open Paperleaf, verify your website identity through ChatGPT, then register or sign in to Paperleaf. Use an independent Paperleaf password and keep the recovery code, which is displayed only once.
 3. Open the Codex connection panel and choose “使用 ChatGPT 登录”. Complete official authorization in the system browser, then return to the reader.
 4. Run “测试 GPT” to verify a real reply. This uses a small amount of account quota and reports first output, total duration, and retries.
@@ -350,6 +356,7 @@ Use an already-authorized Codex profile that you are entitled to access. Where s
 
 | Version | Highlights |
 | --- | --- |
+| [1.5.3](docs/releases/v1.5.3.md) | Semantic paragraph review before translation and independent sidebar scrolling |
 | [1.5.2](docs/releases/v1.5.2.md) | Layout-aware paragraph checks and per-architecture Mac updates |
 | [1.5.1](docs/releases/v1.5.1.md) | Natural paragraphs, equation context and per-request Codex activity |
 | [1.5.0](docs/releases/v1.5.0.md) | Argument-study HTML, offline export, Windows EXE and native macOS DMGs |

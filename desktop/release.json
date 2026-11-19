@@ -1,25 +1,28 @@
 {
-  "version": "1.5.2",
+  "version": "1.5.3",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
-  "sizeMB": 200.7,
-  "sha256": "ab00043e9fb9597d29eda63b7dc431a0464afcb94bbb4a7765e20af9f1bd2e77",
-  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.2/Paperleaf-Setup-1.5.2-Windows-x64.exe",
+  "sizeMB": 200.8,
+  "sha256": "69b0e4c72f995e77940f311e3ed76cff0dc2470d67c8d10ba462faf079eddb5b",
+  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.3/Paperleaf-Setup-1.5.3-Windows-x64.exe",
   "date": "2026-11-19",
   "notes": [
-    "精读与全文正文提取根据文字坐标和栏间距识别单栏、双栏和三栏，单独归集绕排图注。",
-    "精读设置新增分段检查，列出疑似孤立公式、断句和表格行，可按页定位原文。",
-    "改进无标题摘要和参考文献的识别，已保存的旧精读可以重新提取。",
-    "Mac 客户端按 Apple 芯片或 Intel 下载对应的 PKG，校验后打开系统安装器。"
+    "Codex 在精读和全文翻译前逐段核对原文，可续接跨页段落、拆开误合的段落，并列出存疑边界。",
+    "精读设置新增「仅运行 AI 分段」，可先看结果再翻译。已完成批次可暂停续做，跨页段落保留来源页码。",
+    "文献库左栏支持独立上下滚动，滚轮、触控板、触摸和键盘都能到达底部的更新、Codex 与账号入口。"
   ],
   "macPackages": {
     "arm64": {
-      "size": 259060487,
-      "sha256": "0a5779efce7ce44c1ef42ceb88a90575513b20a3d536de38940a04de0f099cc8"
+      "size": 259060213,
+      "sha256": "496611c674fbd5b0bc70151b9f7338bdd673bdc62a3e77b708be7109f157e890"
     },
     "x64": {
-      "size": 276216061,
-      "sha256": "29fcf5388f97b92045aeee7a803e2281c0c701cc759cfcf6f81dc69e758ec7de"
+      "size": 276220053,
+      "sha256": "873e3cf092b88b86fba8bdd50bbc4e4b6fc26dd3af81bc620106513d0b86e9ac"
     }
+  },
+  "buildRuns": {
+    "windows": 44473844178,
+    "macos": 44472672113
   }
 }
