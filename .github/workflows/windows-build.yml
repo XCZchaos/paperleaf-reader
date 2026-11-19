@@ -1,0 +1,40 @@
+name: Build Windows installer
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - '!desktop/release.json'
+      - 'companion/**'
+      - 'scripts/build-desktop.mjs'
+      - 'scripts/build-installer.mjs'
+      - '.github/workflows/windows-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install pinned desktop packaging tools
+        run: |
+          npm install --prefix work/win-tooling --ignore-scripts --no-audit --no-fund @electron/packager@20.3.0 electron-builder@26.18.0
+          ln -s work/win-tooling/node_modules node_modules
+      - name: Package Electron and compile installer
+        run: |
+          node scripts/build-desktop.mjs
+          node scripts/build-installer.mjs
+          node scripts/check-desktop.mjs
+          sha256sum work/desktop/installer/*.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Paperleaf-Windows-x64
+          path: work/desktop/installer/*.exe
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

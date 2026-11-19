@@ -25,7 +25,7 @@ try {
     await page.goto(url,{waitUntil:'domcontentloaded'});
     if(width<700) await page.getByRole('button',{name:'打开导航'}).click();
     const sidebar=page.getByRole('complementary',{name:'文献库导航'});
-    await sidebar.getByText('滚动测试主题 40',{exact:true}).waitFor({state:'attached'});
+    await sidebar.locator('nav.collections span').filter({hasText:/^滚动测试主题 40$/u}).waitFor({state:'attached'});
     const footer=sidebar.locator('button.profile');
     const mainOffset=()=>page.evaluate(()=>({body:window.scrollY,main:document.querySelector('.main-shell').scrollTop}));
     const original=await mainOffset();
