@@ -10,7 +10,7 @@ on:
       tag:
         description: Existing release tag to test
         required: true
-        default: v1.5.4
+        default: v1.5.5
 permissions:
   contents: read
 jobs:
@@ -59,14 +59,14 @@ jobs:
       - name: Prepare previous version and synthetic retained data
         shell: pwsh
         run: |
-          gh release download v1.5.3 --pattern 'Paperleaf-Setup-1.5.3-Windows-x64.exe' --dir work/previous
+          gh release download v1.5.4 --pattern 'Paperleaf-Setup-1.5.4-Windows-x64.exe' --dir work/previous
           if ($LASTEXITCODE -ne 0) { throw 'Previous release download failed' }
-          $previous = Get-Item work/previous/Paperleaf-Setup-1.5.3-Windows-x64.exe
-          if ((Get-FileHash $previous.FullName -Algorithm SHA256).Hash.ToLower() -ne '69b0e4c72f995e77940f311e3ed76cff0dc2470d67c8d10ba462faf079eddb5b') { throw 'Previous installer SHA-256 mismatch' }
+          $previous = Get-Item work/previous/Paperleaf-Setup-1.5.4-Windows-x64.exe
+          if ((Get-FileHash $previous.FullName -Algorithm SHA256).Hash.ToLower() -ne '8027427e129b030fbc09318b52b04bb9f63fc3d8d00e0db157949ce578e09a19') { throw 'Previous installer SHA-256 mismatch' }
           $process = Start-Process $previous.FullName -ArgumentList '/S' -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw 'Previous version installation failed' }
           $installedVersion = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Paperleaf).DisplayVersion
-          if ($installedVersion -ne '1.5.3') { throw 'Previous installed version mismatch' }
+          if ($installedVersion -ne '1.5.4') { throw 'Previous installed version mismatch' }
           "PAPERLEAF_PREVIOUS_VERSION=$installedVersion" >> $env:GITHUB_ENV
           $profile = Join-Path $env:APPDATA 'Paperleaf'
           New-Item -ItemType Directory -Force $profile | Out-Null
