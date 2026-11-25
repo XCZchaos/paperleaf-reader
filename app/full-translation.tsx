@@ -138,7 +138,7 @@ export default function FullTranslation({paper,page,demo,getPages,onPage,onSaved
      const result=await runCodexTask({kind:'translate',translationMode:'paragraph',title:paper.title,pages,selection,...translationSettings},ctrl.signal,j=>{
       if(!mounted.current||ctrl.signal.aborted)return;
       setJob(prefix?{...j,text:prefix+j.text}:j);
-      if(j.retrying||j.retryCount)serial=true;
+      if(j.retrying||j.retryCount){serial=true;stopBackground();}
       if(semantic&&!current.after&&j.text?.trim())prepareAhead();
      });
      texts.push(result.text);usedModel=result.model;

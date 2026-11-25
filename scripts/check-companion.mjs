@@ -12,7 +12,7 @@ class FakeRPC extends EventEmitter {
   if(method==='account/login/start')return{type:'chatgpt',loginId:'fixture-login',authUrl:'https://auth.openai.com/fixture'};
   if(method==='account/logout'){this.loggedIn=false;return{}};
   if(method==='thread/start'){assert.equal(params.permissions,'paperleaf_reading');assert(!('sandbox' in params));return{thread:{id:'thread-'+(++this.seq)},model:'fixture-model'};}
-  if(method==='turn/start'){assert.equal(params.summary,'auto');assert.equal(params.effort,'high');assert(!('sandboxPolicy' in params));return{turn:{id:'turn-'+this.seq,status:'inProgress'}};}
+  if(method==='turn/start'){if(params.input[0].text==='请只回复 OK。')assert.equal(params.summary,undefined);else assert.equal(params.summary,'auto');assert.equal(params.effort,'high');assert(!('sandboxPolicy' in params));return{turn:{id:'turn-'+this.seq,status:'inProgress'}};}
   return{};
  }
  close(){}
@@ -34,7 +34,7 @@ try{
  const login=await json('/login',{method:'POST',body:{}});assert.equal(new URL(login.authUrl).hostname,'auth.openai.com');
  rpc.loggedIn=true;rpc.emit('notification',{method:'account/login/completed',params:{success:true}});
  const state=await json('/status');assert.equal(state.account.plan,'test');assert.equal(state.models[0].id,'fixture-model');assert(!JSON.stringify(state).includes('accessToken'));
- assert.equal(state.connection.transport,'http-sse');
+ assert.equal(state.connection.transport,'codex-default');
  assert.equal(state.rateLimits.primary.usedPercent,10);assert.equal(state.ordinaryUsageAllowed,false);const firstTime=state.rateLimitsUpdatedAt;
  rpc.used=42;assert.equal((await json('/status')).rateLimits.primary.usedPercent,10,'normal status caches');
  const fresh=await json('/status?refresh=1');assert.equal(fresh.rateLimits.primary.usedPercent,42);assert(fresh.rateLimitsUpdatedAt>=firstTime);assert.equal(fresh.rateLimitsByLimitId.codex.primary.usedPercent,42);
@@ -78,6 +78,15 @@ try{
  assert.equal(validateMetadata({...metadata,year:'',doi:''}).year,'');
  assert.throws(()=>validateMetadata({...metadata,year:'unknown'}));assert.throws(()=>validateMetadata({...metadata,doi:'fabricated'}));
  const wordPayload={...payload,id:crypto.randomUUID(),kind:'translate',selection:'regularization',detectVocabulary:true};await json('/jobs',{method:'POST',body:wordPayload},202);await tick();const wordJob=b.jobs.get(wordPayload.id);const wordInfo={word:'regularization',phonetic:'',partOfSpeech:'n.',meaning:'正则化',contextMeaning:'降低过拟合',examples:[{en:'Regularization reduces overfitting.',zh:'正则化降低过拟合。'}],relatedWords:['regularize']};assert(rpc.calls.filter(x=>x.method==='turn/start').at(-1).params.outputSchema.properties.vocabulary);rpc.emit('notification',{method:'item/agentMessage/delta',params:{threadId:wordJob.threadId,itemId:'word-answer',delta:'{"text":'}});assert.equal((await json('/jobs/'+wordJob.id)).text,'');rpc.emit('notification',{method:'item/completed',params:{threadId:wordJob.threadId,item:{id:'word-answer',type:'agentMessage',phase:'final_answer',text:JSON.stringify({text:'**正则化**',vocabulary:wordInfo})}}});rpc.emit('notification',{method:'turn/completed',params:{threadId:wordJob.threadId,turn:{status:'completed'}}});const learned=await json('/jobs/'+wordJob.id);assert.equal(learned.text,'**正则化**');assert.equal(learned.vocabulary.word,'regularization');assert.equal(wordCandidate('two words'),'');assert.equal(wordCandidate('accuracy.'),'accuracy');assert.throws(()=>validateVocabulary({...wordInfo,word:'other'},'regularization'));
+ for(const [mode,provider] of [['default','openai'],['http-sse','paperleaf_chatgpt']]){
+  const test={...payload,id:crypto.randomUUID(),kind:'connection-test',connectionMode:mode,pages:[],selection:'',history:[]};
+  await json('/jobs',{method:'POST',body:test},202);await tick();
+  const thread=rpc.calls.filter(c=>c.method==='thread/start').at(-1).params;
+  const turn=rpc.calls.filter(c=>c.method==='turn/start').at(-1).params;
+  assert.equal(thread.modelProvider,provider);assert.equal(thread.developerInstructions,undefined);
+  assert.equal(turn.input[0].text,'请只回复 OK。');assert.equal(turn.outputSchema,undefined);
+  await json('/jobs/'+test.id+'/cancel',{method:'POST',body:{}});
+ }
  await json('/logout',{method:'POST',body:{}});const loggedOut=await json('/status');assert.equal(loggedOut.account,null);assert.equal(loggedOut.rateLimits,null);assert.equal(loggedOut.rateLimitsByLimitId,null);
  console.log('PASS: forced quota refresh/cache/failure/logout isolation, reasoning summaries, exclusion of raw reasoning, commentary separation and real event stages.');
  console.log('PASS: companion origin/host/token checks, Unicode token safety, login gate, official auth URL, model catalog, idempotent tasks, stream completion, cancellation (including pre-create race), errors, bounded context, citations, structured metadata and filename sanitization. Model responses were explicit fixtures.');

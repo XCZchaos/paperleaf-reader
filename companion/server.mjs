@@ -9,13 +9,18 @@ import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {CodexRPC} from './rpc.mjs';
 import {setStage,readingProgress,publicProgress,progressEvent} from './progress.mjs';
-import {READING_PROVIDER,READING_PROVIDER_CONFIG,CONNECTION_INFO} from './transport.mjs';
+import {READING_PROVIDER,READING_PROVIDER_CONFIG,CONNECTION_INFO,providerFor,retryDiagnosis} from './transport.mjs';
 import {validateRequest,promptFor,instructions,slideSchema,validateDeck,metadataSchema,validateMetadata,wordTranslationSchema,validateWordTranslation} from './research.mjs';
 
 export const SITE='https://paperleaf-xcz-reader.shamboo2003.chatgpt.site';
 export const PORT=17624;
 const active=j=>['preparing','running'].includes(j.status);
 const safeError=e=>String(e?.message||'Codex 请求失败').replace(/Bearer\s+\S+|sk-\S+/gi,'[已隐藏]').slice(0,500);
+function errorForTurn(error){
+ const diagnosis=retryDiagnosis(error||{});
+ if(diagnosis.reason==='rate-limit'||diagnosis.reason==='usage-limit')return diagnosis.label+(diagnosis.httpStatus?'（HTTP '+diagnosis.httpStatus+'）':'')+'。进度已保留，可在连接窗口查看用量后继续。';
+ return safeError(error);
+}
 const publicJob=j=>({id:j.id,kind:j.kind,status:j.status,text:j.kind==='argument'||j.detectVocabulary&&j.status!=='completed'?'':j.text,argument:j.argument||null,vocabulary:j.vocabulary||null,error:j.error,deck:j.deck,metadata:j.metadata||null,model:j.model,effort:j.effort||null,pages:j.pages,created:j.created,...publicProgress(j)});
 
 export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64url'),origin=SITE,port=PORT}) {
@@ -58,7 +63,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
       }
       if(method==='turn/completed'){
         if(j.cancelled){finish(j,'cancelled','已停止生成');continue;}
-        if(p.turn.status!=='completed'){finish(j,p.turn.status==='interrupted'?'cancelled':'error',safeError(p.turn.error||Error('生成未完成，请检查账号额度或网络')));continue;}
+        if(p.turn.status!=='completed'){finish(j,p.turn.status==='interrupted'?'cancelled':'error',errorForTurn(p.turn.error));continue;}
         const finals=[...j.items.values()].filter(x=>x.phase==='final_answer');
         const messages=finals.length?finals:[...j.items.values()].filter(x=>x.phase!=='commentary');
         j.text=messages.map(x=>x.text).join('\n\n');
@@ -89,7 +94,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
           finish(j,'completed');
         }catch(e){finish(j,'error',safeError(e));}
       }
-      if(method==='error'&&!p.willRetry)finish(j,'error',safeError(p.error));
+      if(method==='error'&&!p.willRetry)finish(j,'error',errorForTurn(p.error));
     }
   });
   rpc.on('blocked',p=>{for(const j of jobs.values())if(active(j)&&j.threadId===p.params?.threadId){void cancel(j);j.error='阅读助手不执行本机工具操作，任务已停止';}});
@@ -119,11 +124,12 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
       j.effort=r.effort||selected?.defaultEffort||null;
       if(j.kind==='argument')progressEvent(j,'model','stage','Paperleaf 已核对账号与模型',`${selected?.id||'账号默认模型'} · 思考强度 ${j.effort||'模型默认'}`);
       if(j.cancelled)return;
-      const t=await rpc.request('thread/start',{...(r.model?{model:r.model}:{}),cwd:workdir,approvalPolicy:'untrusted',permissions:'paperleaf_reading',ephemeral:true,baseInstructions:instructions,developerInstructions:instructions,serviceName:'paperleaf_reader'});
+      const diagnostic=r.kind==='connection-test';
+      const t=await rpc.request('thread/start',{modelProvider:r.provider,...(r.model?{model:r.model}:{}),cwd:workdir,approvalPolicy:'untrusted',permissions:'paperleaf_reading',ephemeral:true,baseInstructions:diagnostic?'Answer the connection check briefly. Do not use tools.':instructions,...(diagnostic?{}:{developerInstructions:instructions}),serviceName:'paperleaf_reader'});
       j.threadId=t.thread.id;j.model=t.model||r.model||'Codex 默认模型';
       if(j.cancelled){await rpc.request('thread/unsubscribe',{threadId:j.threadId}).catch(()=>{});return;}
       j.status='running';progressEvent(j,'connected','stage','已连接 Codex',j.model);setStage(j,'thinking');
-      const result=await rpc.request('turn/start',{threadId:j.threadId,summary:'auto',...(r.effort?{effort:r.effort}:{}),input:[{type:'text',text:promptFor(r),text_elements:[]}],approvalPolicy:'untrusted',...(r.kind==='argument'?{outputSchema:argumentSchema(r.argument.phase)}:r.kind==='slides'?{outputSchema:slideSchema(r.slideCount)}:r.kind==='metadata'?{outputSchema:metadataSchema}:r.detectVocabulary?{outputSchema:wordTranslationSchema}:{})},60000);
+      const result=await rpc.request('turn/start',{threadId:j.threadId,...(diagnostic?{}:{summary:'auto'}),...(r.effort?{effort:r.effort}:{}),input:[{type:'text',text:promptFor(r),text_elements:[]}],approvalPolicy:'untrusted',...(r.kind==='argument'?{outputSchema:argumentSchema(r.argument.phase)}:r.kind==='slides'?{outputSchema:slideSchema(r.slideCount)}:r.kind==='metadata'?{outputSchema:metadataSchema}:r.detectVocabulary?{outputSchema:wordTranslationSchema}:{})},60000);
       j.turnId=result.turn.id;
       if(j.cancelled)await rpc.request('turn/interrupt',{threadId:j.threadId,turnId:j.turnId}).catch(()=>{});
     }catch(e){finish(j,'error',safeError(e));}
@@ -167,7 +173,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         await rpc.request('account/logout');login=null;rates=null;modelTime=0;rateTime=0;send(res,200,{ok:true});return;
       }
       if(req.method==='POST'&&u.pathname==='/jobs'){
-        const r=validateRequest(await read(req));const hash=createHash('sha256').update(JSON.stringify(r)).digest('hex');
+        const input=await read(req);const r=validateRequest(input);r.provider=providerFor(input.connectionMode);const hash=createHash('sha256').update(JSON.stringify(r)).digest('hex');
         const existing=jobs.get(r.id);
         if(existing){if(existing.hash!==hash)throw Error('任务标识重复，请重新提交');send(res,200,publicJob(existing));return;}
         if([...jobs.values()].filter(active).length>=2){send(res,429,{error:'已有任务正在生成，请等待或停止后重试'});return;}
@@ -203,7 +209,7 @@ export function spawnCodexProfile(workdir,codexDataDir,options={}){
   // No unrestricted/no-sandbox fallback is permitted.
   const disabled=['shell_snapshot','remote_control','shell_tool','unified_exec','code_mode_host','apps','plugins','remote_plugin','hooks','browser_use','computer_use','multi_agent','multi_agent_v2','view_image','image_generation','skill_search','sleep_tool'];
   const args=[...(cli?[cli]:[]),'app-server','--listen','stdio://','-c','default_permissions="paperleaf_reading"','-c','permissions.paperleaf_reading.filesystem={":root"="read"}','-c','permissions.paperleaf_reading.network.enabled=false','-c','project_doc_max_bytes=0','-c','web_search="disabled"','-c',`cli_auth_credentials_store="${options.credentialStore==='auto'?'auto':'file'}"`,'-c','features.skip_host_skill_discovery=true',...disabled.flatMap(f=>['-c',`features.${f}=false`])];
-  args.push('-c',`model_provider="${READING_PROVIDER}"`,'-c',`model_providers.${READING_PROVIDER}=${READING_PROVIDER_CONFIG}`);
+  args.push('-c','model_provider="openai"','-c',`model_providers.${READING_PROVIDER}=${READING_PROVIDER_CONFIG}`);
   return spawn(options.binaryPath||process.execPath,args,{cwd:workdir,env:childEnv,stdio:['pipe','pipe','pipe'],windowsHide:true});
 }
 

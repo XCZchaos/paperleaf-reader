@@ -12,7 +12,7 @@ const child=spawnCodexProfile(workdir,profile,{binaryPath:process.env.PAPERLEAF_
 try {
  await rpc.initialize();assert.equal((await rpc.request('account/read',{refreshToken:false})).account,null);
  const config=await rpc.request('config/read',{includeLayers:false,cwd:workdir});
- assert.equal(config.config.model_provider,'paperleaf_chatgpt');
+ assert.equal(config.config.model_provider,'openai');
  const provider=config.config.model_providers.paperleaf_chatgpt;
  assert.equal(provider.requires_openai_auth,true);
  assert.equal(provider.wire_api,'responses');
@@ -30,6 +30,9 @@ try {
  const started=await rpc.request('thread/start',{cwd:workdir,model:'gpt-6.1-sol',approvalPolicy:'untrusted',permissions:'paperleaf_reading',ephemeral:true,baseInstructions:'Read only supplied text. No tools.'},45000);
  assert(started.thread.id);
  await rpc.request('thread/unsubscribe',{threadId:started.thread.id});
+ assert.equal(started.thread.modelProvider,'openai');
+ const compatible=await rpc.request('thread/start',{cwd:workdir,approvalPolicy:'untrusted',permissions:'paperleaf_reading',ephemeral:true,modelProvider:'paperleaf_chatgpt'},45000);
+ assert.equal(compatible.thread.modelProvider,'paperleaf_chatgpt');
  const turn={threadId:'00000000-0000-4000-8000-000000000000',input:[{type:'text',text:'Protocol validation only',text_elements:[]}],approvalPolicy:'untrusted'};
  await assert.rejects(rpc.request('turn/start',{...turn,sandboxPolicy:{type:'readOnly',access:{type:'restricted',includePlatformDefaults:false,readableRoots:[workdir]}}}),/readOnly.access/);
  // Reaching the thread lookup proves this request passed the actual decoder.

@@ -5,7 +5,7 @@ const cases=[
  [{codexErrorInfo:{httpConnectionFailed:{httpStatusCode:503}}},'server'],
  [{codexErrorInfo:'serverOverloaded'},'server'],
  [{codexErrorInfo:{responseStreamConnectionFailed:{httpStatusCode:429}}},'rate-limit'],
- [{codexErrorInfo:'usageLimitExceeded'},'rate-limit'],
+ [{codexErrorInfo:'usageLimitExceeded'},'usage-limit'],
  [{codexErrorInfo:{httpConnectionFailed:{httpStatusCode:401}}},'auth'],
  [{codexErrorInfo:'unauthorized'},'auth'],
  [{codexErrorInfo:{httpConnectionFailed:{httpStatusCode:null}}},'connection'],

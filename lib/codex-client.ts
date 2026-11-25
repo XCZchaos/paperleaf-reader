@@ -6,6 +6,17 @@ export function requireSegmentationBridge(version?:string){
  const [major=0,minor=0,patch=0]=(version||'').split('.').map(Number);
  if(!(major>1||major===1&&(minor>5||minor===5&&patch>=3)))throw Error('AI 分段需要 Paperleaf 1.5.3 或更新版本。请打开「版本与更新」升级后继续。');
 }
+export type ConnectionMode='default'|'http-sse';
+const connectionPreference='paperleaf-codex-connection';
+let sessionMode:ConnectionMode='default';
+export function readingConnection():ConnectionMode{
+ try{const saved=window.localStorage.getItem(connectionPreference);if(saved==='http-sse'||saved==='default')return saved;}catch{}
+ return sessionMode;
+}
+export function chooseReadingConnection(mode:ConnectionMode){
+ sessionMode=mode;
+ try{window.localStorage.setItem(connectionPreference,mode);}catch{}
+}
 export const bridgeAddress='http://127.0.0.1:17624';
 export const pairKey='paperleaf-codex-pair';
 export async function bridgeCall<T=any>(path:string,options:RequestInit={}):Promise<T>{
@@ -15,14 +26,14 @@ export async function bridgeCall<T=any>(path:string,options:RequestInit={}):Prom
  try{res=await fetch(bridgeAddress+path,{...options,headers:{'Content-Type':'application/json','X-Paperleaf-Token':token},credentials:'omit',referrerPolicy:'no-referrer',signal:options.signal||AbortSignal.timeout(20000)});}catch(e){if(options.signal?.aborted)throw e;throw Error('无法连接本机程序。请确认它已启动，并允许浏览器访问本地网络（建议使用桌面 Chrome / Edge）。')}
  const data:any=await res.json();if(!res.ok)throw Error(data.error||'Codex 连接失败');if(path.startsWith('/status'))requireCurrentBridge(data.version);return data;
 }
-export async function runCodexTask(input:{kind:ResearchKind|'metadata'|'argument';argument?:import('./argument-types').ArgumentInput;title:string;pages:PageText[];selection?:string;question?:string;history?:{role:string;text:string}[];detectVocabulary?:boolean;translationMode?:'paragraph';slideCount?:number;model?:string;effort?:string},signal:AbortSignal,onProgress:(j:CodexJob)=>void):Promise<CodexJob>{
+export async function runCodexTask(input:{kind:ResearchKind|'metadata'|'argument'|'connection-test';argument?:import('./argument-types').ArgumentInput;title:string;pages:PageText[];selection?:string;question?:string;history?:{role:string;text:string}[];detectVocabulary?:boolean;translationMode?:'paragraph';slideCount?:number;model?:string;effort?:string},signal:AbortSignal,onProgress:(j:CodexJob)=>void):Promise<CodexJob>{
  const id=crypto.randomUUID();
  let cancellationSent=false;
  const cancel=()=>{if(cancellationSent)return;cancellationSent=true;void bridgeCall(`/jobs/${id}/cancel`,{method:'POST',body:'{}'}).catch(()=>{});};
  signal.addEventListener('abort',cancel,{once:true});
  try{
    if(signal.aborted)throw new DOMException('已停止','AbortError');
-   let job=await bridgeCall<CodexJob>('/jobs',{method:'POST',body:JSON.stringify({...input,id}),signal});if(signal.aborted)throw new DOMException('已停止','AbortError');onProgress(job);let changed=true;
+   let job=await bridgeCall<CodexJob>('/jobs',{method:'POST',body:JSON.stringify({...input,id,connectionMode:readingConnection()}),signal});if(signal.aborted)throw new DOMException('已停止','AbortError');onProgress(job);let changed=true;
    while(job.status==='preparing'||job.status==='running'){
      await new Promise<void>((resolve,reject)=>{const stop=()=>{clearTimeout(timer);reject(new DOMException('已停止','AbortError'))};const timer=setTimeout(()=>{signal.removeEventListener('abort',stop);resolve()},streamPollDelay(job,changed,typeof document!=='undefined'&&document.visibilityState==='hidden'));signal.addEventListener('abort',stop,{once:true});if(signal.aborted)stop();});
      const next=await bridgeCall<CodexJob>(`/jobs/${id}`,{signal});if(signal.aborted)throw new DOMException('已停止','AbortError');changed=streamJobChanged(job,next);job=next;if(changed)onProgress(job);

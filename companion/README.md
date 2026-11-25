@@ -43,3 +43,8 @@ Node.js HTTP → 本机 stdio / JSON-RPC → 官方 Codex App Server。先 initi
 ## 1.4.1 连接兼容模式
 
 使用 requires_openai_auth 的独立 HTTP Responses provider，保留 Codex 的 ChatGPT 登录与后端选择，不读取或复制登录凭据，不使用 API Key。禁用模型连接的 WebSocket 握手；按 Codex 返回的类型展示真实重试原因、次数和首次输出时间。升级后重启连接程序。HTTP 仍可能遇到限流、服务错误或网络中断，无法保证零重试。
+
+
+## 1.5.4 连接方式
+
+默认使用 Codex 内置的 OpenAI 提供方。网络需要 HTTP 流式兼容连接时，在 Paperleaf 的连接面板切换；下一次请求会采用所选模式。简短连接测试不附带论文或历史记录。
