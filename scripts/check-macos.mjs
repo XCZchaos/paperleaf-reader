@@ -22,7 +22,7 @@ try{
  const plist=JSON.parse(run('plutil',['-convert','json','-o','-',path.join(contents,'Info.plist')]));
  assert.equal(plist.CFBundleShortVersionString,build.version);assert.equal(plist.CFBundleIdentifier,'com.paperleaf.reader');
  assert((await fs.stat(path.join(resources,plist.CFBundleIconFile))).size>1000);
- for(const file of ['desktop/main.mjs','desktop/runtime.mjs','desktop/updater.mjs','desktop/preload.cjs','companion/server.mjs','companion/rpc.mjs','companion/research.mjs','companion/argument.mjs','companion/progress.mjs','companion/transport.mjs'])assert.deepEqual(asar.extractFile(path.join(resources,'app.asar'),file),await fs.readFile(file),file+' differs from source');
+ for(const file of ['desktop/main.mjs','desktop/runtime.mjs','desktop/updater.mjs','desktop/preload.cjs','companion/server.mjs','companion/rpc.mjs','companion/research.mjs','companion/argument.mjs','companion/progress.mjs','companion/transport.mjs','companion/chat-threads.mjs'])assert.deepEqual(asar.extractFile(path.join(resources,'app.asar'),file),await fs.readFile(file),file+' differs from source');
  assert.equal(JSON.parse(asar.extractFile(path.join(resources,'app.asar'),'package.json').toString()).version,build.version);
  const dmg=await fs.readFile(build.installer);assert.equal(createHash('sha256').update(dmg).digest('hex'),build.sha256);
  console.log('PASS: mounted DMG, Applications link, copied app, architecture, brand icon, version, ad-hoc signature, packaged source and SHA-256.');

@@ -1,6 +1,6 @@
 export const READING_PROVIDER='paperleaf_chatgpt';
 export const READING_PROVIDER_CONFIG='{name="Paperleaf ChatGPT",requires_openai_auth=true,wire_api="responses",supports_websockets=false}';
-export const CONNECTION_INFO={transport:'codex-default',label:'Codex 官方默认连接',supportsConnectionChoice:true};
+export const CONNECTION_INFO={transport:'codex-default',label:'Codex 官方默认连接',supportsConnectionChoice:true,adaptiveTransport:true};
 
 export function providerFor(mode){
  if(mode===undefined||mode==='default')return 'openai';
@@ -31,7 +31,7 @@ export function retryDiagnosis(error={}){
   'usage-limit':['Codex 报告使用上限','请在连接窗口刷新账号用量和重置时间。'],
   server:['模型服务暂时不可用','上游服务返回错误，Codex 正在重试当前任务。'],
   timeout:['响应超时','等待上游响应超时，Codex 正在重试当前任务。'],
-  stream:['回答传输中断','响应流在完成前中断，Codex 正在恢复当前任务。'],
+  stream:['回答传输中断','模型的回答流在完成前断开，Codex 正在重试同一轮。'],
   connection:['连接未建立','未能建立上游连接，Codex 正在重试；持续出现时请检查网络或代理。'],
   unknown:['Codex 正在重试','上游没有提供可明确分类的原因，暂时无法判断是否为网络问题。']
  };

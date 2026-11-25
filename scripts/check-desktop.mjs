@@ -14,7 +14,7 @@ class FakeChild extends EventEmitter{
  constructor(){super();this.stdout=new PassThrough();this.stderr=new PassThrough();this.closed=false;let buffer='';this.stdin=new Writable({write:(chunk,_encoding,done)=>{buffer+=chunk.toString();let index;while((index=buffer.indexOf('\n'))>=0){const message=JSON.parse(buffer.slice(0,index));buffer=buffer.slice(index+1);if(message.id){let result={};if(message.method==='account/read')result={account:null};if(message.method==='model/list')result={data:[],nextCursor:null};if(message.method==='account/login/start')result={type:'chatgpt',loginId:'fixture',authUrl:'https://auth.openai.com/fixture'};queueMicrotask(()=>this.stdout.write(JSON.stringify({id:message.id,result})+'\n'));}}done()}})}
  kill(){if(this.closed)return;this.closed=true;queueMicrotask(()=>{this.stdout.end();this.emit('exit',0)})}
 }
-const runtime=new DesktopRuntime({dataDir:temporary,binaryPath:'/fixture/codex.exe',getAccount:async()=>account,openExternal:async url=>{opened=url},spawnProfile:(workdir,profile,options)=>{const child=new FakeChild();calls.push({workdir,profile,options,child});return child}});
+const runtime=new DesktopRuntime({dataDir:temporary,binaryPath:'/fixture/codex.exe',getAccount:async()=>{if(account instanceof Error)throw account;return account;},openExternal:async url=>{opened=url},spawnProfile:(workdir,profile,options)=>{const child=new FakeChild();calls.push({workdir,profile,options,child});return child}});
 try{
  for(const route of ['/status','/status?refresh=1','/jobs/'+crypto.randomUUID()])assert.equal(validateDesktopRequest(route).method,'GET');
  for(const route of ['/file','/execute','https://evil.invalid/status','/../status','/status?token=x'])assert.throws(()=>validateDesktopRequest(route));
@@ -24,6 +24,11 @@ try{
  await assert.rejects(runtime.request('/status'),/Paperleaf/);assert.equal(calls.length,0);
  account={id:'fixture-owner-one'};const statuses=await Promise.all([runtime.request('/status'),runtime.request('/status')]);assert.equal(calls.length,1);assert(statuses.every(s=>s.connected&&s.account===null));
  assert.equal(calls[0].options.binaryPath,'/fixture/codex.exe');assert.equal(calls[0].options.credentialStore,'auto');assert(!calls[0].profile.includes(account.id));
+ const originalOwner=account;
+ account=Error('云端账号状态暂时无法读取');
+ await assert.rejects(runtime.request('/status'),/暂时无法读取/);
+ assert.equal(calls[0].child.closed,false,'Transient proof failure cannot destroy the authenticated task');
+ account=originalOwner;await runtime.request('/status');assert.equal(calls.length,1);
  const login=await runtime.request('/login',{method:'POST',body:'{}'});assert.deepEqual(login,{started:true});assert.equal(opened,'https://auth.openai.com/fixture');assert(!JSON.stringify(statuses).includes(runtime.bridge.token));
  account={id:'fixture-owner-two'};await runtime.request('/status');assert.equal(calls.length,2);assert.notEqual(calls[0].profile,calls[1].profile);assert(calls[0].child.closed);
  account=null;await assert.rejects(runtime.request('/status'),/Paperleaf/);assert(calls[1].child.closed);assert.equal(runtime.bridge,null);
@@ -39,7 +44,7 @@ try{
  console.log('PASS: focus-mode preload origin gate, narrow IPC, isolated callbacks and listener cleanup.');
  const packageRoot=path.join(process.cwd(),'work/desktop/release/Paperleaf-win32-x64');
  for(const file of ['Paperleaf.exe','resources/codex/bin/codex.exe']){const data=await readFile(path.join(packageRoot,file));assert.equal(data.subarray(0,2).toString(),'MZ');const offset=data.readUInt32LE(0x3c);assert.equal(data.subarray(offset,offset+4).toString(),'PE\0\0');assert.equal(data.readUInt16LE(offset+4),0x8664);}
- for(const file of ['desktop/main.mjs','desktop/runtime.mjs','desktop/updater.mjs','desktop/preload.cjs','companion/server.mjs','companion/rpc.mjs','companion/research.mjs','companion/argument.mjs','companion/progress.mjs','companion/transport.mjs','desktop/assets/paperleaf.ico'])assert.deepEqual(asar.extractFile(path.join(packageRoot,'resources/app.asar'),file),await readFile(file),file+' differs from source');
+ for(const file of ['desktop/main.mjs','desktop/runtime.mjs','desktop/updater.mjs','desktop/preload.cjs','companion/server.mjs','companion/rpc.mjs','companion/research.mjs','companion/argument.mjs','companion/progress.mjs','companion/transport.mjs','companion/chat-threads.mjs','desktop/assets/paperleaf.ico'])assert.deepEqual(asar.extractFile(path.join(packageRoot,'resources/app.asar'),file),await readFile(file),file+' differs from source');
  const {version}=JSON.parse(await readFile('desktop/package.json','utf8'));
  for(const file of ['package.json','desktop/package.json'])assert.equal(JSON.parse(asar.extractFile(path.join(packageRoot,'resources/app.asar'),file).toString()).version,version,'Packaged version mismatch: '+file);
  assert.equal(JSON.parse(await readFile('companion/package.json','utf8')).version,version,'Companion version mismatch');

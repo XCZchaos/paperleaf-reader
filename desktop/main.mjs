@@ -21,7 +21,7 @@ if(!app.requestSingleInstanceLock()){app.quit()}else{
   const cloud=session.fromPartition('persist:paperleaf-cloud');
   cloud.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));cloud.setPermissionCheckHandler(()=>false);
   runtime=new DesktopRuntime({dataDir:app.getPath('userData'),binaryPath:path.join(process.resourcesPath,'codex','bin',process.platform==='win32'?'codex.exe':'codex'),openExternal:url=>shell.openExternal(url),getAccount:async()=>{
-   try{const response=await cloud.fetch(SITE+'/api/account',{credentials:'include',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error();const state=await response.json();return state.account;}catch{throw Error('无法验证云端账号，请检查网络并重新登录 Paperleaf');}
+   try{const response=await cloud.fetch(SITE+'/api/account',{credentials:'include',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(15000)});if(response.status===401||response.status===403)return null;if(!response.ok)throw Error();const state=await response.json();return state.account;}catch{throw Error('云端账号状态暂时无法读取，请稍后重试。');}
   }});
   updater=new DesktopUpdater({version:app.getVersion(),site:SITE,dataDir:app.getPath('userData'),fetch:(...args)=>cloud.fetch(...args),openExternal:url=>shell.openExternal(url),launch:async file=>{
    if(process.platform==='darwin'){

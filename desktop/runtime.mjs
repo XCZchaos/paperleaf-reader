@@ -15,7 +15,9 @@ export class DesktopRuntime{
  constructor({dataDir,binaryPath,getAccount,openExternal,spawnProfile=spawnCodexProfile}){Object.assign(this,{dataDir,binaryPath,getAccount,openExternal,spawnProfile});this.bridge=null;this.owner='';this.starting=null;this.generation=0;}
  async disconnect(){this.generation++;const old=this.bridge;this.bridge=null;this.owner='';if(old)await old.close();}
  async ensure(){
-  let account;try{account=await this.getAccount()}catch(e){await this.disconnect();throw e}if(!account?.id){await this.disconnect();throw Error('请先登录 Paperleaf 云端账号');}
+  // A temporarily unavailable cloud check must deny this read without killing a running turn.
+  const account=await this.getAccount();
+  if(!account?.id){await this.disconnect();throw Error('请先登录 Paperleaf 云端账号');}
   if(this.bridge&&this.owner===account.id)return this.bridge;
   if(this.starting){await this.starting;return this.ensure();}
   const owner=account.id;

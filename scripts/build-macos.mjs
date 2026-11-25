@@ -18,7 +18,7 @@ for(const name of ['main.mjs','runtime.mjs','updater.mjs','preload.cjs','package
 await fs.cp('desktop/assets',path.join(source,'desktop/assets'),{recursive:true});
 await fs.copyFile('desktop/package.json',path.join(source,'package.json'));
 await fs.mkdir(path.join(source,'companion'));
-for(const name of ['server.mjs','rpc.mjs','research.mjs','argument.mjs','progress.mjs','transport.mjs'])await fs.copyFile(path.join('companion',name),path.join(source,'companion',name));
+for(const name of ['server.mjs','rpc.mjs','research.mjs','argument.mjs','progress.mjs','transport.mjs','chat-threads.mjs'])await fs.copyFile(path.join('companion',name),path.join(source,'companion',name));
 
 const metadataResponse=await fetch(`https://registry.npmjs.org/@openai%2Fcodex/${codexVersion}-darwin-${arch}`);
 if(!metadataResponse.ok)throw Error('Official macOS Codex package metadata unavailable');

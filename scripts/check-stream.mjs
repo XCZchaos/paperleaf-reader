@@ -17,6 +17,15 @@ try{
  globalThis.window={paperleafDesktop:{version:'1.4.2',request:async(route)=>{inFlight++;maxInFlight=Math.max(maxInFlight,inFlight);await new Promise(r=>setTimeout(r,2));inFlight--;if(route.endsWith('/cancel')){cancelled++;return {}}if(route==='/jobs')return base;requests++;return sequence.shift()}}};
  const updates=[],ctrl=new AbortController();const result=await runCodexTask({kind:'ask',title:'Synthetic streaming test',pages:[{page:1,text:'fixture'}]},ctrl.signal,j=>updates.push(j.text));
  assert.deepEqual(updates,['','第一句。','第一句。完整回答。']);assert.equal(result.status,'completed');assert.equal(requests,3);assert.equal(maxInFlight,1);assert.equal(cancelled,0);
+ let posts=0,reads=0;
+ window.paperleafDesktop.request=async(route)=>{
+  if(route==='/jobs'){posts++;return base;}
+  if(route.endsWith('/cancel')){cancelled++;return {};}
+  if(++reads===1)throw Error('云端账号状态暂时无法读取，请稍后重试。');
+  return {...base,status:'completed',text:'Only one generation',updated:4};
+ };
+ const resumed=await runCodexTask({kind:'ask',title:'Transient cloud check',pages:[]},new AbortController().signal,()=>{});
+ assert.equal(resumed.text,'Only one generation');assert.equal(posts,1);assert.equal(reads,2);assert.equal(cancelled,0);
  // IPC promises cannot be aborted: reject a late reply without delivering it.
  let resolvePost;window.paperleafDesktop.request=async route=>{if(route.endsWith('/cancel')){cancelled++;return {}}return new Promise(r=>resolvePost=r)};
  const late=new AbortController(),seen=[];const task=runCodexTask({kind:'translate',title:'Late response test',pages:[]},late.signal,j=>seen.push(j));

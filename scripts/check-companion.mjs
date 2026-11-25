@@ -4,7 +4,7 @@ import {EventEmitter} from 'node:events';
 import {createBridge,SITE} from '../companion/server.mjs';
 import {validateRequest,validateDeck,validateMetadata,paperFilename,wordCandidate,validateVocabulary} from '../companion/research.mjs';
 class FakeRPC extends EventEmitter {
- constructor(){super();this.calls=[];this.loggedIn=false;this.seq=0;}
+ constructor(){super();this.calls=[];this.loggedIn=false;this.seq=0;this.turns=0;}
  async request(method,params){this.calls.push({method,params});
   if(method==='account/read')return{account:this.loggedIn?{type:'chatgpt',email:'test@example.invalid',planType:'test'}:null};
   if(method==='model/list')return{data:[{model:'fixture-model',displayName:'Fixture only',isDefault:true,defaultReasoningEffort:'low',supportedReasoningEfforts:[{reasoningEffort:'low',description:'Faster'},{reasoningEffort:'high',description:'Deeper'}]}],nextCursor:null};
@@ -12,7 +12,7 @@ class FakeRPC extends EventEmitter {
   if(method==='account/login/start')return{type:'chatgpt',loginId:'fixture-login',authUrl:'https://auth.openai.com/fixture'};
   if(method==='account/logout'){this.loggedIn=false;return{}};
   if(method==='thread/start'){assert.equal(params.permissions,'paperleaf_reading');assert(!('sandbox' in params));return{thread:{id:'thread-'+(++this.seq)},model:'fixture-model'};}
-  if(method==='turn/start'){if(params.input[0].text==='请只回复 OK。')assert.equal(params.summary,undefined);else assert.equal(params.summary,'auto');assert.equal(params.effort,'high');assert(!('sandboxPolicy' in params));return{turn:{id:'turn-'+this.seq,status:'inProgress'}};}
+  if(method==='turn/start'){if(params.input[0].text==='请只回复 OK。')assert.equal(params.summary,undefined);else assert.equal(params.summary,'auto');assert.equal(params.effort,'high');assert(!('sandboxPolicy' in params));return{turn:{id:'turn-'+(++this.turns),status:'inProgress'}};}
   return{};
  }
  close(){}
@@ -87,6 +87,45 @@ try{
   assert.equal(turn.input[0].text,'请只回复 OK。');assert.equal(turn.outputSchema,undefined);
   await json('/jobs/'+test.id+'/cancel',{method:'POST',body:{}});
  }
+ const postJob=async(body)=>{
+  await json('/jobs',{method:'POST',body},202);await tick();return b.jobs.get(body.id);
+ };
+ const emitTo=(j,method,params)=>rpc.emit('notification',{method,params:{threadId:j.threadId,turnId:j.turnId,...params}});
+ const finishAnswer=(j,text)=>{
+  emitTo(j,'item/completed',{item:{id:j.id,type:'agentMessage',phase:'final_answer',text}});
+  emitTo(j,'turn/completed',{turn:{id:j.turnId,status:'completed'}});
+ };
+ const lastCall=method=>rpc.calls.filter(c=>c.method===method).at(-1).params;
+ const newRequest=extra=>({...payload,id:crypto.randomUUID(),adaptiveConnection:true,...extra});
+ const first=newRequest({paperId:'paper-A',selection:'quote'}),firstJob=await postJob(first);
+ finishAnswer(firstJob,'First answer');
+ const history=[{role:'user',text:first.question+'\n引用原文：quote'},{role:'assistant',text:'First answer'}];
+ const follow=newRequest({paperId:'paper-A',parentId:first.id,conversationId:first.id,question:'How so?',history});
+ const count=rpc.seq,continued=await postJob(follow);
+ assert.equal(rpc.seq,count);assert.equal(continued.threadId,firstJob.threadId);
+ assert(!lastCall('turn/start').input[0].text.includes('Fixture methods.'));assert(!lastCall('turn/start').input[0].text.includes('First answer'));
+ assert(continued.events.some(e=>e.title==='沿用本次对话'));
+ emitTo(firstJob,'turn/completed',{turn:{id:firstJob.turnId,status:'completed'}});
+ assert.equal(continued.status,'running','Late completion belongs to previous turn');
+ const forked=await postJob({...follow,id:crypto.randomUUID()});
+ assert.notEqual(forked.threadId,continued.threadId);assert(lastCall('turn/start').input[0].text.includes('First answer'));
+ finishAnswer(forked,'Branch');finishAnswer(continued,'Second answer');
+ const scoped=await postJob(newRequest({paperId:'paper-A',conversationId:first.id,parentId:follow.id,pages:[{page:2,text:'Different page'}],history:[...history,{role:'user',text:follow.question},{role:'assistant',text:'Second answer'}]}));
+ assert.notEqual(scoped.threadId,continued.threadId);assert(lastCall('turn/start').input[0].text.includes('Different page'));finishAnswer(scoped,'New scope');
+ const proof=await postJob(newRequest({}));
+ const report=(j,code)=>emitTo(j,'error',{willRetry:true,error:{codexErrorInfo:code}});
+ const rate={responseStreamConnectionFailed:{httpStatusCode:429}};
+ report(proof,rate);report(proof,rate);finishAnswer(proof,'After rate limit');
+ const interrupted=await postJob(newRequest({}));assert.equal(lastCall('thread/start').modelProvider,'openai');
+ const originalTurns=rpc.turns;
+ const cut={responseStreamDisconnected:{httpStatusCode:null}};
+ report(interrupted,cut);report(interrupted,cut);report(interrupted,cut);
+ assert.equal(rpc.turns,originalTurns,'Upstream recovery cannot replay a turn');
+ finishAnswer(interrupted,'Recovered once');
+ const switched=await postJob(newRequest({}));assert.equal(lastCall('thread/start').modelProvider,'paperleaf_chatgpt');
+ assert.equal(lastCall('turn/start').effort,'high');finishAnswer(switched,'HTTP');
+ const forced=await postJob(newRequest({adaptiveConnection:false,connectionMode:'default'}));assert.equal(lastCall('thread/start').modelProvider,'openai');finishAnswer(forced,'Pinned');
+ console.log('PASS: live chat continuity, single-use branches, scope isolation, old turn events, transport fallback after two stream interruptions only, explicit provider choice, and no replay.');
  await json('/logout',{method:'POST',body:{}});const loggedOut=await json('/status');assert.equal(loggedOut.account,null);assert.equal(loggedOut.rateLimits,null);assert.equal(loggedOut.rateLimitsByLimitId,null);
  console.log('PASS: forced quota refresh/cache/failure/logout isolation, reasoning summaries, exclusion of raw reasoning, commentary separation and real event stages.');
  console.log('PASS: companion origin/host/token checks, Unicode token safety, login gate, official auth URL, model catalog, idempotent tasks, stream completion, cancellation (including pre-create race), errors, bounded context, citations, structured metadata and filename sanitization. Model responses were explicit fixtures.');

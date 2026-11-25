@@ -7,6 +7,7 @@ import {createRequire} from 'node:module';
 import {homedir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
+import {chatScope,IdleChatThreads} from './chat-threads.mjs';
 import {CodexRPC} from './rpc.mjs';
 import {setStage,readingProgress,publicProgress,progressEvent} from './progress.mjs';
 import {READING_PROVIDER,READING_PROVIDER_CONFIG,CONNECTION_INFO,providerFor,retryDiagnosis} from './transport.mjs';
@@ -18,6 +19,7 @@ const active=j=>['preparing','running'].includes(j.status);
 const safeError=e=>String(e?.message||'Codex 请求失败').replace(/Bearer\s+\S+|sk-\S+/gi,'[已隐藏]').slice(0,500);
 function errorForTurn(error){
  const diagnosis=retryDiagnosis(error||{});
+ if(['stream','connection','timeout'].includes(diagnosis.reason))return diagnosis.label+(diagnosis.httpStatus?'（HTTP '+diagnosis.httpStatus+'）':'')+'。这轮未完成，可在「连接 Codex」里用同一模型测试连接方式。';
  if(diagnosis.reason==='rate-limit'||diagnosis.reason==='usage-limit')return diagnosis.label+(diagnosis.httpStatus?'（HTTP '+diagnosis.httpStatus+'）':'')+'。进度已保留，可在连接窗口查看用量后继续。';
  return safeError(error);
 }
@@ -25,11 +27,21 @@ const publicJob=j=>({id:j.id,kind:j.kind,status:j.status,text:j.kind==='argument
 
 export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64url'),origin=SITE,port=PORT}) {
   const jobs=new Map(),cancelledIds=new Map(); let login=null,modelCache=[],modelTime=0,accountKey='',rates=null,rateTime=0,rateAttempt=0,rateWarning='',ratesById=null,quotaOwner='',ordinaryUsageAllowed=null;
+  const unsubscribe=threadId=>{void rpc.request('thread/unsubscribe',{threadId}).catch(()=>{});};
+  const idleChats=new IdleChatThreads(unsubscribe);
+  let preferHttpUntil=0,accountGeneration=0;
+  function resetSessions(){
+    accountGeneration++;preferHttpUntil=0;idleChats.clear();
+  }
   function finish(j,status,error='') {
     if(!active(j))return;
     j.status=status;j.error=error;j.completedAt=Date.now();setStage(j,status);clearTimeout(j.timer);
     if(j.kind==='argument'&&error)progressEvent(j,'terminal','stage',status==='cancelled'?'本轮精读已停止':'本轮精读失败',error);
-    if(j.threadId)rpc.request('thread/unsubscribe',{threadId:j.threadId}).catch(()=>{});
+    if(j.threadId){
+      if(status==='completed'&&j.chatScope&&j.accountGeneration===accountGeneration)idleChats.remember(j);
+      else unsubscribe(j.threadId);
+    }
+    delete j.chatHistory;delete j.pendingEvents;
   }
   async function cancel(j) {
     if(!active(j))return;
@@ -39,67 +51,89 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
   }
   rpc.on('notification',({method,params:p})=>{
     if(method==='account/login/completed')login={...login,done:true,success:!!p.success,error:p.success?'':'登录未完成，请重试'};
-    if(method==='account/updated'){modelTime=0;rateTime=0;rateAttempt=0;rates=null;ratesById=null;ordinaryUsageAllowed=null;}
+    if(method==='thread/closed'&&p?.threadId)idleChats.forgetThread(p.threadId);
+    if(method==='account/updated'){if(!p.authMode)resetSessions();modelTime=0;rateTime=0;rateAttempt=0;rates=null;ratesById=null;ordinaryUsageAllowed=null;}
     if(method==='account/rateLimits/updated'&&quotaOwner){const snapshot=p.rateLimits;if(snapshot){rates={...rates,...Object.fromEntries(Object.entries(snapshot).filter(([,v])=>v!=null))};if(snapshot.limitId)ratesById={...ratesById,[snapshot.limitId]:{...ratesById?.[snapshot.limitId],...snapshot}};rateTime=Date.now();}}
     for(const j of jobs.values()) {
-      if(!active(j)||j.threadId!==p?.threadId)continue;
-      readingProgress(j,method,p);
-      if(method==='turn/started')j.turnId=p.turn.id;
-      if(method==='item/started'&&p.item.type==='agentMessage')j.items.set(p.item.id,{text:'',phase:p.item.phase});
-      if(method==='item/agentMessage/delta'){
-        if(p.delta&&!j.firstResponseAt)j.firstResponseAt=Date.now();
-        const old=j.items.get(p.itemId)||{text:'',phase:null};old.text+=p.delta;j.items.set(p.itemId,old);
-        if(old.phase==='commentary'){j.activity=old.text.slice(-600);progressEvent(j,'commentary-'+p.itemId,'commentary','阅读进展',old.text,false);}else{j.text=old.text.slice(0,100000);setStage(j,'writing');if(j.kind==='argument')progressEvent(j,'output','stage','正在接收结构化结果',`已收到 ${old.text.length.toLocaleString()} 字符`,false);}
-        if(old.text.length>100000){void cancel(j);j.error='输出超过长度限制，请缩小阅读范围';}
+      if(!active(j)||!j.threadId||j.threadId!==p?.threadId)continue;
+      if(j.pendingEvents){
+        // turn/start may emit events before returning the new turn ID.
+        if(p.turnId||p.turn?.id)j.pendingEvents.push([method,p]);
+        continue;
       }
-      if(method==='item/completed'&&p.item.type==='agentMessage'){
-        if(p.item.text&&!j.firstResponseAt)j.firstResponseAt=Date.now();
-        j.items.set(p.item.id,{text:p.item.text,phase:p.item.phase});
-        if(p.item.phase==='commentary'){j.activity=p.item.text.slice(-600);progressEvent(j,'commentary-'+p.item.id,'commentary','阅读进展',p.item.text,true);}else{j.text=p.item.text.slice(0,100000);setStage(j,'writing');}
-        if(j.kind==='argument'&&p.item.phase!=='commentary')progressEvent(j,'output','stage','已接收结构化结果',`共 ${p.item.text.length.toLocaleString()} 字符`);
-      }
-      if(method==='item/started'&&!['userMessage','agentMessage','reasoning','plan','contextCompaction'].includes(p.item.type)){
-        progressEvent(j,'tool-blocked','stage','工具请求已阻止','文献阅读仅处理你提供的文字。');void cancel(j);j.error='阅读任务尝试调用工具，已停止。请重新提问并仅依据原文。';
-      }
-      if(method==='turn/completed'){
-        if(j.cancelled){finish(j,'cancelled','已停止生成');continue;}
-        if(p.turn.status!=='completed'){finish(j,p.turn.status==='interrupted'?'cancelled':'error',errorForTurn(p.turn.error));continue;}
-        const finals=[...j.items.values()].filter(x=>x.phase==='final_answer');
-        const messages=finals.length?finals:[...j.items.values()].filter(x=>x.phase!=='commentary');
-        j.text=messages.map(x=>x.text).join('\n\n');
-        if(!j.text.trim()){finish(j,'error','Codex 未返回完整正文，请重新尝试');continue;}
-        setStage(j,'finalizing');
-        try{
-          if(j.kind==='argument'){
-            const value=JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,''));
-            if(j.argumentInput.phase==='segmentation'){
-              j.argument=validateBoundaryDecisions(value,j.argumentInput);
-              progressEvent(j,'verified','stage','已核对 AI 分段决定',j.argument.decisions.length+' 个原文片段已逐一对应');
-            }else if(j.argumentInput.phase==='paragraphs'){
-              j.argument=validateArgumentBatch(value,j.argumentInput.paragraphs);
-              const count=j.argument.paragraphs.reduce((n,p)=>n+p.highlights.length,0);
-              progressEvent(j,'verified','stage','Paperleaf 已核对逐段结果',`${j.argument.paragraphs.length} 段译文与批注 · ${count} 处原文高亮匹配 · ${j.argument.skippedHighlights} 处高亮跳过`);
-            }else{
-              j.argument=validateArgumentOverview(value,j.argumentInput.sources);
-              progressEvent(j,'verified','stage','Paperleaf 已核对总览引用',`${Object.keys(j.argument).length} 项论证分析已通过来源校验`);
-            }
-          }
-          if(j.detectVocabulary){const parsed=validateWordTranslation(JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'')),j.selection);j.text=parsed.text;j.vocabulary=parsed.vocabulary;}
-          if(j.kind==='metadata')j.metadata=validateMetadata(JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'')));
-          if(j.kind==='slides'){
-            const raw=j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'');
-            j.deck=validateDeck(JSON.parse(raw),j.pages);
-            if(j.deck.slides.length!==j.slideCount)throw Error('生成页数与要求不一致，请重试');
-          }
-          finish(j,'completed');
-        }catch(e){finish(j,'error',safeError(e));}
-      }
-      if(method==='error'&&!p.willRetry)finish(j,'error',errorForTurn(p.error));
+      handleEvent(j,method,p);
     }
   });
+  function handleEvent(j,method,p){
+    if(!active(j))return;
+    const turnId=p.turnId||p.turn?.id;
+    if(j.turnId&&turnId&&j.turnId!==turnId)return;
+    readingProgress(j,method,p);
+    if(method==='error'&&p.willRetry&&j.adaptiveDefault&&j.accountGeneration===accountGeneration){
+      const reason=j.lastRetry?.reason;
+      if(reason==='stream'||reason==='connection'){
+        j.transportFailures=(j.transportFailures||0)+1;
+        if(j.transportFailures===2){
+          preferHttpUntil=Date.now()+10*60*1000;
+          progressEvent(j,'transport-next','stage','后续请求将暂用 HTTP 流式连接','本轮由 Codex 继续重试。下一次自动连接将使用 HTTP，模型和账号保持一致。');
+        }
+      }else j.transportFailures=0;
+    }
+    if(method==='turn/started')j.turnId=p.turn.id;
+    if(method==='item/started'&&p.item.type==='agentMessage')j.items.set(p.item.id,{text:'',phase:p.item.phase});
+    if(method==='item/agentMessage/delta'){
+      if(p.delta&&!j.firstResponseAt)j.firstResponseAt=Date.now();
+      const old=j.items.get(p.itemId)||{text:'',phase:null};old.text+=p.delta;j.items.set(p.itemId,old);
+      if(old.phase==='commentary'){j.activity=old.text.slice(-600);progressEvent(j,'commentary-'+p.itemId,'commentary','阅读进展',old.text,false);}else{j.text=old.text.slice(0,100000);setStage(j,'writing');if(j.kind==='argument')progressEvent(j,'output','stage','正在接收结构化结果',`已收到 ${old.text.length.toLocaleString()} 字符`,false);}
+      if(old.text.length>100000){void cancel(j);j.error='输出超过长度限制，请缩小阅读范围';}
+    }
+    if(method==='item/completed'&&p.item.type==='agentMessage'){
+      if(p.item.text&&!j.firstResponseAt)j.firstResponseAt=Date.now();
+      j.items.set(p.item.id,{text:p.item.text,phase:p.item.phase});
+      if(p.item.phase==='commentary'){j.activity=p.item.text.slice(-600);progressEvent(j,'commentary-'+p.item.id,'commentary','阅读进展',p.item.text,true);}else{j.text=p.item.text.slice(0,100000);setStage(j,'writing');}
+      if(j.kind==='argument'&&p.item.phase!=='commentary')progressEvent(j,'output','stage','已接收结构化结果',`共 ${p.item.text.length.toLocaleString()} 字符`);
+    }
+    if(method==='item/started'&&!['userMessage','agentMessage','reasoning','plan','contextCompaction'].includes(p.item.type)){
+      progressEvent(j,'tool-blocked','stage','工具请求已阻止','文献阅读仅处理你提供的文字。');void cancel(j);j.error='阅读任务尝试调用工具，已停止。请重新提问并仅依据原文。';
+    }
+    if(method==='turn/completed'){
+      if(j.cancelled){finish(j,'cancelled','已停止生成');return;}
+      if(p.turn.status!=='completed'){finish(j,p.turn.status==='interrupted'?'cancelled':'error',errorForTurn(p.turn.error));return;}
+      const finals=[...j.items.values()].filter(x=>x.phase==='final_answer');
+      const messages=finals.length?finals:[...j.items.values()].filter(x=>x.phase!=='commentary');
+      j.text=messages.map(x=>x.text).join('\n\n');
+      if(!j.text.trim()){finish(j,'error','Codex 未返回完整正文，请重新尝试');return;}
+      setStage(j,'finalizing');
+      try{
+        if(j.kind==='argument'){
+          const value=JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,''));
+          if(j.argumentInput.phase==='segmentation'){
+            j.argument=validateBoundaryDecisions(value,j.argumentInput);
+            progressEvent(j,'verified','stage','已核对 AI 分段决定',j.argument.decisions.length+' 个原文片段已逐一对应');
+          }else if(j.argumentInput.phase==='paragraphs'){
+            j.argument=validateArgumentBatch(value,j.argumentInput.paragraphs);
+            const count=j.argument.paragraphs.reduce((n,p)=>n+p.highlights.length,0);
+            progressEvent(j,'verified','stage','Paperleaf 已核对逐段结果',`${j.argument.paragraphs.length} 段译文与批注 · ${count} 处原文高亮匹配 · ${j.argument.skippedHighlights} 处高亮跳过`);
+          }else{
+            j.argument=validateArgumentOverview(value,j.argumentInput.sources);
+            progressEvent(j,'verified','stage','Paperleaf 已核对总览引用',`${Object.keys(j.argument).length} 项论证分析已通过来源校验`);
+          }
+        }
+        if(j.detectVocabulary){const parsed=validateWordTranslation(JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'')),j.selection);j.text=parsed.text;j.vocabulary=parsed.vocabulary;}
+        if(j.kind==='metadata')j.metadata=validateMetadata(JSON.parse(j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'')));
+        if(j.kind==='slides'){
+          const raw=j.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'');
+          j.deck=validateDeck(JSON.parse(raw),j.pages);
+          if(j.deck.slides.length!==j.slideCount)throw Error('生成页数与要求不一致，请重试');
+        }
+        finish(j,'completed');
+      }catch(e){finish(j,'error',safeError(e));}
+    }
+    if(method==='error'&&!p.willRetry)finish(j,'error',errorForTurn(p.error));
+  }
   rpc.on('blocked',p=>{for(const j of jobs.values())if(active(j)&&j.threadId===p.params?.threadId){void cancel(j);j.error='阅读助手不执行本机工具操作，任务已停止';}});
-  rpc.on('closed',message=>{for(const j of jobs.values())finish(j,'error',message)});
-  async function account(){const {account}=await rpc.request('account/read',{refreshToken:false});const a=account?.type==='chatgpt'?{email:account.email,plan:account.planType}:null;const key=a?`${a.email}|${a.plan}`:'';if(key!==quotaOwner){quotaOwner=key;rates=null;ratesById=null;rateTime=0;rateAttempt=0;rateWarning='';ordinaryUsageAllowed=null;}return a;}
+  rpc.on('closed',message=>{resetSessions();for(const j of jobs.values())finish(j,'error',message)});
+  async function account(){const {account}=await rpc.request('account/read',{refreshToken:false});const a=account?.type==='chatgpt'?{email:account.email,plan:account.planType}:null;const key=a?`${a.email}|${a.plan}`:'';if(key!==quotaOwner){resetSessions();quotaOwner=key;rates=null;ratesById=null;rateTime=0;rateAttempt=0;rateWarning='';ordinaryUsageAllowed=null;}return a;}
   async function readRates(force=false){
     if(!force&&Date.now()-rateAttempt<60000)return;
     rateAttempt=Date.now();const owner=quotaOwner;
@@ -117,21 +151,47 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
   }
   async function run(j,r){
     try{
-      const a=await account();if(!a)throw Error('请先在连接面板登录 Codex / ChatGPT 账号');
+      const a=j.account;delete j.account;
+      const ownerGeneration=accountGeneration;
       const list=await models(a);if(r.model&&!list.some(m=>m.id===r.model))throw Error('该模型不在当前账号的模型列表中，请重新选择');
       const selected=r.model?list.find(m=>m.id===r.model):list.find(m=>m.default);
       if(r.effort&&!selected?.reasoningEfforts.some(e=>e.id===r.effort))throw Error('当前模型不支持所选思考强度，请在 Codex 面板重新选择');
       j.effort=r.effort||selected?.defaultEffort||null;
       if(j.kind==='argument')progressEvent(j,'model','stage','Paperleaf 已核对账号与模型',`${selected?.id||'账号默认模型'} · 思考强度 ${j.effort||'模型默认'}`);
       if(j.cancelled)return;
+      if(ownerGeneration!==accountGeneration)throw Error('Codex 账号已切换，请重新提问');
       const diagnostic=r.kind==='connection-test';
-      const t=await rpc.request('thread/start',{modelProvider:r.provider,...(r.model?{model:r.model}:{}),cwd:workdir,approvalPolicy:'untrusted',permissions:'paperleaf_reading',ephemeral:true,baseInstructions:diagnostic?'Answer the connection check briefly. Do not use tools.':instructions,...(diagnostic?{}:{developerInstructions:instructions}),serviceName:'paperleaf_reader'});
-      j.threadId=t.thread.id;j.model=t.model||r.model||'Codex 默认模型';
-      if(j.cancelled){await rpc.request('thread/unsubscribe',{threadId:j.threadId}).catch(()=>{});return;}
-      j.status='running';progressEvent(j,'connected','stage','已连接 Codex',j.model);setStage(j,'thinking');
-      const result=await rpc.request('turn/start',{threadId:j.threadId,...(diagnostic?{}:{summary:'auto'}),...(r.effort?{effort:r.effort}:{}),input:[{type:'text',text:promptFor(r),text_elements:[]}],approvalPolicy:'untrusted',...(r.kind==='argument'?{outputSchema:argumentSchema(r.argument.phase)}:r.kind==='slides'?{outputSchema:slideSchema(r.slideCount)}:r.kind==='metadata'?{outputSchema:metadataSchema}:r.detectVocabulary?{outputSchema:wordTranslationSchema}:{})},60000);
-      j.turnId=result.turn.id;
-      if(j.cancelled)await rpc.request('turn/interrupt',{threadId:j.threadId,turnId:j.turnId}).catch(()=>{});
+      const useHttp=r.provider===READING_PROVIDER||(r.adaptive&&preferHttpUntil>Date.now());
+      const provider=useHttp?READING_PROVIDER:r.provider;
+      j.adaptiveDefault=r.adaptive&&!useHttp;j.accountGeneration=accountGeneration;
+      j.chatScope=chatScope(r,quotaOwner,selected?.id||r.model,j.effort,provider);
+      if(j.chatScope)j.chatHistory=[...r.history,{role:'user',text:r.question+(r.selection?'\n引用原文：'+r.selection:'')}];
+      const previous=j.chatScope&&idleChats.take(r.parentId,j.chatScope,r.history);
+      const openThread=async()=>{
+        const t=await rpc.request('thread/start',{modelProvider:provider,...(r.model?{model:r.model}:{}),cwd:workdir,approvalPolicy:'untrusted',permissions:'paperleaf_reading',ephemeral:true,baseInstructions:diagnostic?'Answer the connection check briefly. Do not use tools.':instructions,...(diagnostic?{}:{developerInstructions:instructions}),serviceName:'paperleaf_reader'});
+        j.threadId=t.thread.id;j.model=t.model||r.model||'Codex 默认模型';
+      };
+      if(previous){j.threadId=previous;j.model=selected?.id||r.model||'Codex 默认模型';}
+      else await openThread();
+      const startTurn=async continuing=>{
+        if(!active(j)||j.cancelled){unsubscribe(j.threadId);return;}
+        if(j.accountGeneration!==accountGeneration)throw Error('Codex 账号已切换，请重新提问');
+        j.status='running';
+        progressEvent(j,'connected','stage',continuing?'沿用本次对话':j.kind==='ask'?'本轮对话已就绪':'本轮任务已就绪',
+          j.model+' · '+(useHttp?'HTTP 流式连接':'Codex 默认连接'));
+        setStage(j,'thinking');
+        if(continuing)j.pendingEvents=[];
+        const result=await rpc.request('turn/start',{threadId:j.threadId,...(diagnostic?{}:{summary:'auto'}),...(r.effort?{effort:r.effort}:{}),input:[{type:'text',text:promptFor(r,continuing),text_elements:[]}],approvalPolicy:'untrusted',...(r.kind==='argument'?{outputSchema:argumentSchema(r.argument.phase)}:r.kind==='slides'?{outputSchema:slideSchema(r.slideCount)}:r.kind==='metadata'?{outputSchema:metadataSchema}:r.detectVocabulary?{outputSchema:wordTranslationSchema}:{})},60000);
+        j.turnId=result.turn.id;
+        const events=j.pendingEvents||[];delete j.pendingEvents;
+        for(const [method,params] of events)handleEvent(j,method,params);
+        if(j.cancelled)await rpc.request('turn/interrupt',{threadId:j.threadId,turnId:j.turnId}).catch(()=>{});
+      };
+      try{await startTurn(!!previous);}catch(e){
+        // Only an explicit missing thread guarantees no turn was accepted.
+        if(!previous||!active(j)||j.cancelled||!/^(?:thread (?:not found|not loaded)|unknown thread|no thread found|thread [0-9a-f-]+ (?:not found|is not loaded))\b/i.test(String(e.message)))throw e;
+        delete j.pendingEvents;delete j.threadId;unsubscribe(previous);await openThread();await startTurn(false);
+      }
     }catch(e){finish(j,'error',safeError(e));}
   }
   function send(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
@@ -155,12 +215,12 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
         const a=await account();let m=[],warning='';
         if(a){try{m=await models(a)}catch{warning='模型列表暂时不可用，可以使用 Codex 默认模型'}
           await readRates(u.searchParams.get('refresh')==='1');}
-        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,rateLimitsByLimitId:a?ratesById:null,rateLimitsUpdatedAt:a?rateTime:null,rateLimitsWarning:a?rateWarning:'',ordinaryUsageAllowed:a?ordinaryUsageAllowed:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,connection:CONNECTION_INFO,version:'1.5.4'});return;
+        send(res,200,{connected:true,account:a,models:m,rateLimits:a?rates:null,rateLimitsByLimitId:a?ratesById:null,rateLimitsUpdatedAt:a?rateTime:null,rateLimitsWarning:a?rateWarning:'',ordinaryUsageAllowed:a?ordinaryUsageAllowed:null,login:login?{done:login.done,success:login.success,error:login.error}:null,warning,connection:CONNECTION_INFO,version:'1.5.5'});return;
       }
       if(req.method==='POST'&&u.pathname==='/login'){
         if([...jobs.values()].some(active)){send(res,409,{error:'请先停止当前生成任务，再登录其他账号'});return;}
         if(login?.loginId&&!login.done)await rpc.request('account/login/cancel',{loginId:login.loginId}).catch(()=>{});
-        const result=await rpc.request('account/login/start',{type:'chatgpt'},60000);
+        resetSessions();const result=await rpc.request('account/login/start',{type:'chatgpt'},60000);
         const authURL=new URL(result.authUrl);
         if(authURL.protocol!=='https:'||!['auth.openai.com','chatgpt.com'].includes(authURL.hostname))throw Error('Codex 返回了无法识别的登录地址');
         login={loginId:result.loginId,done:false,success:false,error:''};send(res,200,{authUrl:result.authUrl});return;
@@ -170,17 +230,17 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
       }
       if(req.method==='POST'&&u.pathname==='/logout'){
         await Promise.all([...jobs.values()].filter(active).map(cancel));
-        await rpc.request('account/logout');login=null;rates=null;modelTime=0;rateTime=0;send(res,200,{ok:true});return;
+        resetSessions();await rpc.request('account/logout');login=null;rates=null;modelTime=0;rateTime=0;send(res,200,{ok:true});return;
       }
       if(req.method==='POST'&&u.pathname==='/jobs'){
-        const input=await read(req);const r=validateRequest(input);r.provider=providerFor(input.connectionMode);const hash=createHash('sha256').update(JSON.stringify(r)).digest('hex');
+        const input=await read(req);const r=validateRequest(input);r.provider=providerFor(input.connectionMode);r.adaptive=r.provider==='openai'&&input.adaptiveConnection===true;const hash=createHash('sha256').update(JSON.stringify(r)).digest('hex');
+        const currentAccount=await account();if(!currentAccount){send(res,401,{error:'请先登录 Codex / ChatGPT 账号'});return;}
         const existing=jobs.get(r.id);
         if(existing){if(existing.hash!==hash)throw Error('任务标识重复，请重新提交');send(res,200,publicJob(existing));return;}
         if([...jobs.values()].filter(active).length>=2){send(res,429,{error:'已有任务正在生成，请等待或停止后重试'});return;}
-        if(!await account()){send(res,401,{error:'请先登录 Codex / ChatGPT 账号'});return;}
         if(cancelledIds.has(r.id)){send(res,200,{id:r.id,status:'cancelled',text:'',error:'已停止生成'});return;}
         for(const [id,j] of jobs)if(!active(j)&&(Date.now()-j.created>1800000||jobs.size>=30))jobs.delete(id);
-        const j={argumentInput:r.argument,detectVocabulary:r.detectVocabulary,selection:r.selection,id:r.id,kind:r.kind,status:'preparing',text:'',error:'',deck:null,model:r.model||'',pages:r.pages.map(p=>p.page),created:Date.now(),updated:Date.now(),stage:'preparing',summaries:new Map(),events:[],activity:'',items:new Map(),hash,slideCount:r.slideCount};
+        const j={account:currentAccount,argumentInput:r.argument,detectVocabulary:r.detectVocabulary,selection:r.selection,id:r.id,kind:r.kind,status:'preparing',text:'',error:'',deck:null,model:r.model||'',pages:r.pages.map(p=>p.page),created:Date.now(),updated:Date.now(),stage:'preparing',summaries:new Map(),events:[],activity:'',items:new Map(),hash,slideCount:r.slideCount};
         j.timer=setTimeout(()=>{void cancel(j);j.error='生成超过 5 分钟已停止，请缩小范围或更换模型';},300000);
         progressEvent(j,'source','stage','已读取文献',`${r.pages.length} 页 · ${r.pages.reduce((n,p)=>n+p.text.length,0).toLocaleString()} 字符`);jobs.set(j.id,j);send(res,202,publicJob(j));void run(j,r);return;
       }
@@ -193,7 +253,7 @@ export function createBridge({rpc,workdir,token=randomBytes(32).toString('base64
     }catch(e){send(res,400,{error:safeError(e)});}
   });
   server.requestTimeout=15000;server.headersTimeout=10000;
-  return {server,token,jobs,cancel,close:async()=>{await Promise.all([...jobs.values()].filter(active).map(cancel));rpc.close();server.close();}};
+  return {server,token,jobs,cancel,close:async()=>{resetSessions();await Promise.all([...jobs.values()].filter(active).map(cancel));rpc.close();server.close();}};
 }
 
 export function spawnCodexProfile(workdir,codexDataDir,options={}){

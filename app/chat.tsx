@@ -57,7 +57,7 @@ export default function ChatPanel({paper,page,totalPages,source,getPages,onPage,
    const start=scope==='all'?1:scope==='page'?page:from,end=scope==='all'?totalPages:scope==='page'?page:to;
    if(!Number.isInteger(start)||!Number.isInteger(end)||start<1||end>totalPages||end<start)throw Error('请输入有效的页码范围');
    const pages=await getPages(start,end);if(ctrl.signal.aborted)return;if(!pages.some(p=>p.text.trim()))throw Error('所选页面未提取到文字，扫描件需要先做 OCR。');
-   const result=await runCodexTask({kind:'ask',title:paper.title,pages,question:asked,selection,model:settings.model,effort:settings.effort,history:context.history},ctrl.signal,j=>{if(mounted.current&&!ctrl.signal.aborted)setJob(j)});
+   const result=await runCodexTask({kind:'ask',paperId:paper.id,conversationId:conversation,parentId:messages.at(-1)?.id,title:paper.title,pages,question:asked,selection,model:settings.model,effort:settings.effort,history:context.history},ctrl.signal,j=>{if(mounted.current&&!ctrl.signal.aborted)setJob(j)});
    if(!mounted.current||ctrl.signal.aborted)return;
    const record:ResearchResult={id:result.id,paperId:paper.id,kind:'ask',question:asked,selection,readingContext:attachedContext,text:result.text,deck:null,page:start,pages:result.pages,model:result.model,effort:result.effort||'',created:Date.now(),conversationId:conversation||result.id,parentId:messages.at(-1)?.id||'',process:{events:result.events,reasoningSummary:result.reasoningSummary,created:result.created,completedAt:result.completedAt}};
    setMessages(ms=>[...ms,record]);setConversation(record.conversationId!);setPending(record);setQuestion('');setQuote('');setScope('range');setFrom(start);setTo(end);setCurrent(null);setJob(null);
