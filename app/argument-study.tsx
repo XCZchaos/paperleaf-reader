@@ -106,7 +106,7 @@ export default function ArgumentStudyWorkspace({paper,getBodyPages,onClose,demo=
   const ctrl=new AbortController();controller.current=ctrl;setRunning(true);setError('');
   try{
    const generateTask=reviewOnly?reviewArgumentStudy:generateArgumentStudy;
-   await generateTask({study:{...source,course},runTask:traceArgumentTasks(()=>current.current||source,runCodexTask,(a,flush)=>recordAttempt(source.created,a,flush)),signal:ctrl.signal,model:settings.model,effort:settings.effort,onChange:commit,onProgress:(_j,message)=>{if(mounted.current&&!ctrl.signal.aborted)setLabel(message)}});
+   await generateTask({study:{...source,course},runTask:traceArgumentTasks(()=>current.current||source,runCodexTask,(a,flush)=>recordAttempt(source.created,a,flush)),signal:ctrl.signal,model:settings.model,effort:settings.effort,onChange:commit,onProgress:showProgress});
    if(mounted.current){setLabel(reviewOnly?'AI 分段已完成，可核对结果或开始翻译与批注。':'全部段落与论证总览已完成');if(!reviewOnly)setControls(false)}
   }catch(e){if(mounted.current){setError(ctrl.signal.aborted?'':(e as Error).message);setLabel(ctrl.signal.aborted?'已暂停。继续时从未完成的批次开始。':'当前批次未完成，已有的判别和精读进度已保留。')}}
   finally{if(mounted.current)setRunning(false);controller.current=null}
@@ -120,6 +120,13 @@ export default function ArgumentStudyWorkspace({paper,getBodyPages,onClose,demo=
  async function restoreCloud(){
   if(demo||running||saving)return;if(done&&!confirm('载入云端版本将替换当前本机精读。请先导出需要保留的结果。继续？'))return;
   setSaving(true);setError('');try{const data=await api<{study:ArgumentStudy|null;etag:string|null}>(`/api/argument-study?paper=${paper.id}`);setEtag(data.etag);if(!data.study){setCloudStatus('云端暂无精读记录');return;}const value=validateArgumentStudy(data.study,paper.pages);if(trace.current.studyCreated!==value.created)resetTrace(value);setCourse(value.course);setMode(value.mode);await commit(value);setCloudStatus('已载入云端版本')}catch(e){setError((e as Error).message)}finally{setSaving(false)}
+ }
+ function showProgress(job:import('@/lib/ai-types').CodexJob|null,stage:string){
+  if(!mounted.current||controller.current?.signal.aborted)return;
+  if(job?.retrying&&job.lastRetry){
+   const status=job.lastRetry.httpStatus?`（HTTP ${job.lastRetry.httpStatus}）`:'';
+   setLabel(`${job.lastRetry.label}${status} · 等待第 ${job.retryCount||1} 次重试`);
+  }else setLabel(stage);
  }
  function exportHtml(){if(!withCourse)return;const name=paper.title.replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').slice(0,100);download(argumentHtml(withCourse,fonts),`${name}-论证精读${completed?'':'-未完成草稿'}.html`,'text/html;charset=utf-8')}
  function close(){controller.current?.abort();if(current.current)void remember({...current.current,course});onClose()}

@@ -1,28 +1,28 @@
 {
-  "version": "1.5.3",
+  "version": "1.5.4",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
-  "sizeMB": 200.8,
-  "sha256": "69b0e4c72f995e77940f311e3ed76cff0dc2470d67c8d10ba462faf079eddb5b",
-  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.3/Paperleaf-Setup-1.5.3-Windows-x64.exe",
-  "date": "2026-11-19",
+  "sizeMB": 200.7,
+  "sha256": "8027427e129b030fbc09318b52b04bb9f63fc3d8d00e0db157949ce578e09a19",
+  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.4/Paperleaf-Setup-1.5.4-Windows-x64.exe",
+  "date": "2026-11-25",
   "notes": [
-    "Codex 在精读和全文翻译前逐段核对原文，可续接跨页段落、拆开误合的段落，并列出存疑边界。",
-    "精读设置新增「仅运行 AI 分段」，可先看结果再翻译。已完成批次可暂停续做，跨页段落保留来源页码。",
-    "文献库左栏支持独立上下滚动，滚轮、触控板、触摸和键盘都能到达底部的更新、Codex 与账号入口。"
+    "AI 确认首段边界后即开始翻译。读当前段时可以继续核对后文，跨页续句合并后翻译。论证精读同步提前显示译文和批注。",
+    "全文译文和分段进度可暂停续做。翻译会参考相邻段落和前文译法，方便阅读缩写、术语和跨段指代。",
+    "默认使用 Codex 官方连接，可手动选择 HTTP 兼容模式。测试 GPT 只发一条短消息，界面区分普通 HTTP 429 和明确的使用上限。"
   ],
   "macPackages": {
     "arm64": {
-      "size": 259060213,
-      "sha256": "496611c674fbd5b0bc70151b9f7338bdd673bdc62a3e77b708be7109f157e890"
+      "size": 259060481,
+      "sha256": "9447e6a1c716a37c7d995dad2f30e63d99c2d2856d8c3af1bf65410f8ebfafce"
     },
     "x64": {
-      "size": 276220053,
-      "sha256": "873e3cf092b88b86fba8bdd50bbc4e4b6fc26dd3af81bc620106513d0b86e9ac"
+      "size": 276219734,
+      "sha256": "c6cb692914877fa57d07080ecd50a95dfa5e3b8b7559ef13a07773395568f1ce"
     }
   },
   "buildRuns": {
-    "windows": 44473844178,
-    "macos": 44472672113
+    "windows": 45574355912,
+    "macos": 45574356600
   }
 }

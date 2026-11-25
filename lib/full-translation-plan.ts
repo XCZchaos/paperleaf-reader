@@ -61,10 +61,11 @@ export async function publishTranslationPlan(owner:string,paper:string,mode:stri
   // One transaction chooses a canonical continuation and appends immutable
   // paragraph rows only for its winning writer. Retrying never requeues a translation.
   await database.batch([
-    database.prepare(`INSERT INTO reading_states (id,owner,paper_id,kind,value,updated) VALUES (?,?,?,?,?,?)
+    database.prepare(`INSERT INTO reading_states (id,owner,paper_id,kind,value,updated)
+      SELECT ?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM papers WHERE id=? AND owner=?)
       ON CONFLICT(id) DO UPDATE SET value=excluded.value,updated=excluded.updated
       WHERE json_extract(reading_states.value,'$.revision')=?`)
-      .bind(id,owner,paper,'translation-plan-'+mode,JSON.stringify(plan),now,current.plan?.revision||''),
+      .bind(id,owner,paper,'translation-plan-'+mode,JSON.stringify(plan),now,paper,owner,current.plan?.revision||''),
     database.prepare(`INSERT INTO translation_paragraphs (id,owner,paper_id,page,ordinal,original,status,error,updated,extraction_mode)
       SELECT json_extract(value,'$.id'),?,?,json_extract(value,'$.page'),json_extract(value,'$.ordinal'),json_extract(value,'$.original'),
         CASE WHEN json_extract(value,'$.original')='' THEN 'skipped' ELSE 'queued' END,json_extract(value,'$.reason'),?,?
@@ -74,5 +75,6 @@ export async function publishTranslationPlan(owner:string,paper:string,mode:stri
   ]);
   const saved=await readTranslationPlan(owner,paper,mode);
   if(saved.complete)return {complete:true};
-  return saved.plan?.revision===revision?{complete:false}:{complete:false,review:saved.plan?.review};
+  if(!saved.plan)throw Error('NOT_FOUND');
+  return saved.plan.revision===revision?{complete:false}:{complete:false,review:saved.plan?.review};
 }

@@ -9,6 +9,8 @@ const pages=[{page:1,bodyParagraphs:Array.from({length:10},(_,i)=>'Independent e
  {page:2,bodyParagraphs:['This sentence completes the previous argument. A separate trial used room temperature.','More measurements corroborate the trial.']}];
 const base=newArgumentStudy({id:'semantic',title:'Synthetic layout'},pages);
 assert.equal(inspectArgumentParagraphs(base.sources).length,0,'the AI must check even completely unflagged source');
+const interruptedOld=structuredClone(base);delete interruptedOld.review.quickStart;
+assert.equal(validateArgumentStudy(interruptedOld).review.quickStart,true);
 const keep=p=>({id:p.id,before:'keep',splits:[],reason:''});
 const phases=[],calls=[];
 let snapshot=base;
@@ -50,6 +52,9 @@ const resumed=await generateArgumentStudy({...mixed,study:checkpoint,signal:new 
 assert.deepEqual(sequence,['segmentation','paragraphs','segmentation','paragraphs','paragraphs','overview']);
 assert.deepEqual(resumed.batches.flatMap(b=>b.ids),reviewed.sources.map(p=>p.id));
 assert.equal(resumed.batches.flatMap(b=>b.result.paragraphs)[9].original,joined.original);
+const onlyReviewed=await reviewArgumentStudy({...opts,study:structuredClone(checkpoint),signal:new AbortController().signal,onChange:s=>validateArgumentStudy(s)});
+assert.equal(onlyReviewed.batches.length,1,'review-only must preserve already translated paragraphs');
+assert.equal(onlyReviewed.batches[0].result.paragraphs[0].translation,checkpoint.batches[0].result.paragraphs[0].translation);
 const first=reviewInput(base.sources,[base.sources[0]]);
 for(const wrong of [[],[{...keep(first.paragraphs[0]),id:'p9-9'}],[{...keep(first.paragraphs[0]),before:'join',reason:'no parent'}],[{...keep(first.paragraphs[0]),splits:['Fabricated citation'],reason:'test'}]]){
  assert.throws(()=>validateBoundaryDecisions({decisions:wrong},first));

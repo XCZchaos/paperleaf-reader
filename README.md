@@ -8,13 +8,17 @@
 
 Paperleaf 将文献管理、PDF 阅读、中英对照、研究笔记、单词积累和 GPT 问答放在同一张工作台上。资料由账号云端保存，Windows 和 macOS 桌面版内置 Codex，通过官方账号授权调用 GPT，帮助你从日常精读走到组会汇报。
 
-[桌面版下载与说明](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [下载 Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.3/Paperleaf-Setup-1.5.3-Windows-x64.exe) · [最新发行版](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [English](README.en.md)
+[桌面版下载与说明](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [下载 Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.4/Paperleaf-Setup-1.5.4-Windows-x64.exe) · [最新发行版](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [English](README.en.md)
 
 | 当前版本 | 桌面平台 | 界面 | 项目状态 |
 | --- | --- | --- | --- |
-| **1.5.3** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · 复古纸页 · 夜读主题 | 公开源码，持续迭代；桌面预览版 |
+| **1.5.4** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · 复古纸页 · 夜读主题 | 公开源码，持续迭代；桌面预览版 |
 
 Paperleaf 是独立开发的应用，并非 OpenAI 官方产品。模型访问与额度取决于你已登录的 Codex 账号。
+
+## 1.5.4 · 边分段边翻译
+
+在「全文中英对照」中，GPT 确认首段后就开始显示译文，随后继续核对后文。遇到跨页续句会等段落完整后一起翻译。暂停或换电脑后，可从已保存的位置继续。「论证精读」也会提前显示确认好的段落及批注。[使用说明](docs/releases/v1.5.4.md)
 
 ## 1.5.3 · AI 分段与文献库导航
 
@@ -134,7 +138,7 @@ Windows 和 macOS 安装包都内置 Codex。Mac 用户按芯片选择 PKG 安�
 
 ### Windows 首次使用
 
-1. 下载 [Paperleaf-Setup-1.5.3-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.3/Paperleaf-Setup-1.5.3-Windows-x64.exe)，双击安装。安装包约 **201 MiB**，无需解压 ZIP。
+1. 下载 [Paperleaf-Setup-1.5.4-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.4/Paperleaf-Setup-1.5.4-Windows-x64.exe)，双击安装。安装包约 **201 MiB**，无需解压 ZIP。
 2. 打开 Paperleaf，先通过 ChatGPT 验证网站访问身份，再注册或登录 Paperleaf 账号。为 Paperleaf 设置独立密码，并保存只显示一次的恢复码。
 3. 打开“连接 Codex”，点击“使用 ChatGPT 登录”，在系统浏览器完成官方授权，返回阅读器。
 4. 点击“测试 GPT”，确认能够收到真实回复；此操作会消耗少量账号额度，并显示首次输出耗时、总耗时和重试次数。
@@ -187,10 +191,10 @@ flowchart TB
   API --> R2["R2 · PDF 原文件"]
   Desktop -->|"受限 IPC"| Bridge["本机连接程序"]
   Bridge -->|"stdio / JSON-RPC"| Codex["Codex App Server"]
-  Codex -->|"账号授权 · HTTP 流式"| Model["OpenAI 模型服务"]
+  Codex -->|"账号授权 · Codex 连接"| Model["OpenAI 模型服务"]
 ```
 
-桌面版加载同一个 HTTPS 网站，并在本机运行内置 Codex。云端负责资料与记录，本机连接程序负责向 Codex 提交限定的阅读任务。1.4.1 默认采用 HTTP 流式兼容连接；不会自动切换为 API Key 按量计费。
+桌面版加载同一个 HTTPS 网站，并在本机运行内置 Codex。云端负责资料与记录，本机连接程序负责向 Codex 提交限定的阅读任务。1.5.4 默认使用 Codex 内置连接，在连接面板可手动选择 HTTP 流式兼容模式。
 
 | 数据 | 保存位置 / 流向 |
 | --- | --- |
@@ -350,7 +354,7 @@ node scripts/check-vocabulary-live.mjs --profile /absolute/path/to/already-signe
 | --- | --- |
 | 不登录 Codex 能用吗？ | 可以普通导入、阅读、手写笔记及查看已保存成果；访问个人资料仍需登录云端账号。智能识别、翻译、问答和内容生成需要 Codex。 |
 | 登录后是否无限使用 GPT？ | 不是。模型、思考档位与额度以账号实际可用能力为准；程序不自动转为付费 API 调用。 |
-| 为什么仍会重试？ | 网络、代理、服务端、限流或授权均可能影响请求。1.4.1 使用 HTTP 流式兼容连接并分类显示原因；先更新并重启，再运行“测试 GPT”。未知原因会明确标注，不保证零重试。 |
+| 为什么仍会重试？ | 连接面板可用一句简短的中文指令测试当前模型。HTTP 429 表示本次请求受到限制，具体原因以 Codex 返回的错误和账号用量窗口为准。 |
 | 额度刷新失败，但问答正常？ | 两者是不同请求。测试账号的刷新接口存在 HTTP 401；界面保留失败与旧数据提示，旧数据显示不代表刷新成功。 |
 | 没有显示思考摘要？ | 只有 Codex 实际返回公开摘要才显示。部分模型 / 任务不返回；可继续查看真实阶段与公开进度。 |
 | 扫描 PDF 或图表能直接理解吗？ | 当前主要提取 PDF 文字层，不内置 OCR，也不等同于完整图像、图表或公式理解。扫描件请先 OCR；双栏段落顺序需要核对。 |
@@ -364,6 +368,7 @@ node scripts/check-vocabulary-live.mjs --profile /absolute/path/to/already-signe
 
 | 版本 | 重点 |
 | --- | --- |
+| [1.5.4](docs/releases/v1.5.4.md) | 确认一段就翻译，跨页续句和已完成译文可续用 |
 | [1.5.3](docs/releases/v1.5.3.md) | 翻译前由 AI 逐段判别，文献库侧栏独立滚动 |
 | [1.5.2](docs/releases/v1.5.2.md) | 分段检查、不同版式与 macOS 按芯片更新 |
 | [1.5.1](docs/releases/v1.5.1.md) | 自然段与跨页公式、按请求回看的 Codex 执行记录 |

@@ -8,13 +8,17 @@
 
 Paperleaf brings PDF reading, bilingual translation, research notes, vocabulary, and GPT conversations into one workspace. Your account stores your library in the cloud. The Windows and macOS clients bundle Codex and uses official account authorization for model requests.
 
-[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.3/Paperleaf-Setup-1.5.3-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
+[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.4/Paperleaf-Setup-1.5.4-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
 
 | Current version | Desktop platform | Interface | Status |
 | --- | --- | --- | --- |
-| **1.5.3** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
+| **1.5.4** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
 
 The application interface is primarily Chinese. Paperleaf is an independent application, not an official OpenAI product. Model access and usage limits depend on the signed-in Codex account.
+
+## 1.5.4 · Read the first translation while later paragraphs are reviewed
+
+Full Translation starts showing Chinese text as soon as the first paragraph is confirmed. A passage continuing onto the next page stays together. Resume from the saved translation and boundary review on another device. Argument Study also shows translations and annotations as they become ready. [Release notes](docs/releases/v1.5.4.md)
 
 ## 1.5.3 · AI paragraph review and a scrollable library sidebar
 
@@ -128,7 +132,7 @@ The Windows and macOS installers include Codex. Mac users can install the PKG fo
 
 ### First launch on Windows
 
-1. Download [Paperleaf-Setup-1.5.3-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.3/Paperleaf-Setup-1.5.3-Windows-x64.exe) and run the installer. It is approximately **201 MiB**; no ZIP extraction is needed.
+1. Download [Paperleaf-Setup-1.5.4-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.4/Paperleaf-Setup-1.5.4-Windows-x64.exe) and run the installer. It is approximately **201 MiB**; no ZIP extraction is needed.
 2. Open Paperleaf, verify your website identity through ChatGPT, then register or sign in to Paperleaf. Use an independent Paperleaf password and keep the recovery code, which is displayed only once.
 3. Open the Codex connection panel and choose “使用 ChatGPT 登录”. Complete official authorization in the system browser, then return to the reader.
 4. Run “测试 GPT” to verify a real reply. This uses a small amount of account quota and reports first output, total duration, and retries.
@@ -181,10 +185,10 @@ flowchart TB
   API --> R2["R2 · original PDFs"]
   Desktop -->|"Bounded IPC"| Bridge["Local companion bridge"]
   Bridge -->|"stdio / JSON-RPC"| Codex["Codex App Server"]
-  Codex -->|"Account auth · HTTP streaming"| Model["OpenAI model service"]
+  Codex -->|"Account auth · Codex connection"| Model["OpenAI model service"]
 ```
 
-The desktop client loads the same HTTPS website and runs bundled Codex locally. Cloud APIs store library records; the local bridge submits bounded reading tasks. Version 1.4.1 defaults to an HTTP streaming compatibility connection and does not silently switch to metered API-key billing.
+The desktop client loads the same HTTPS website and runs bundled Codex locally. Cloud APIs store library records; the local bridge submits bounded reading tasks. Version 1.5.4 uses the built-in Codex provider by default. An HTTP compatibility option is available in the connection panel.
 
 | Data | Storage / destination |
 | --- | --- |
@@ -342,7 +346,7 @@ Use an already-authorized Codex profile that you are entitled to access. Where s
 | --- | --- |
 | Can I use Paperleaf without Codex? | Yes: plain import, reading, manual notes, and previously saved results remain available after cloud sign-in. Smart metadata, translation, Q&A, and content generation require Codex. |
 | Does sign-in provide unlimited GPT access? | No. Available models, reasoning levels, and quota depend on the account. Paperleaf does not automatically switch to a billed API key. |
-| Why can requests still retry? | Network, proxy, service, rate-limit, or authorization problems can affect requests. Version 1.4.1 uses HTTP streaming and classifies reported causes. Upgrade, restart, then run “测试 GPT”. Unknown causes remain unknown; zero retries are not guaranteed. |
+| Why does Codex retry? | Run the short connection check in the Codex panel. A 429 indicates that the service limited this request. Check the reported error and account usage windows for more detail. |
 | Why can quota refresh fail while Q&A works? | They use different requests. The test profile's refresh endpoint returns HTTP 401. Errors and stale-data warnings remain visible; cached values are not reported as a successful refresh. |
 | Why is there no reasoning summary? | It is displayed only when Codex returns a public summary. Some models / tasks provide none; real stage and public progress events remain available. |
 | Does it understand scans and figures? | It primarily extracts PDF text layers. It has no built-in OCR and does not provide full image, figure, or formula-image understanding. OCR scans first and verify complex column order. |
@@ -356,6 +360,7 @@ Use an already-authorized Codex profile that you are entitled to access. Where s
 
 | Version | Highlights |
 | --- | --- |
+| [1.5.4](docs/releases/v1.5.4.md) | Start translating as soon as a paragraph is confirmed |
 | [1.5.3](docs/releases/v1.5.3.md) | Semantic paragraph review before translation and independent sidebar scrolling |
 | [1.5.2](docs/releases/v1.5.2.md) | Layout-aware paragraph checks and per-architecture Mac updates |
 | [1.5.1](docs/releases/v1.5.1.md) | Natural paragraphs, equation context and per-request Codex activity |

@@ -42,6 +42,7 @@ export default function FullTranslation({paper,page,demo,getPages,onPage,onSaved
  const {account}=useAccount();
  const [reviewProgress,setReviewProgress]=useState('');
  const c=useCodex(),[view,setView]=useState(page),[data,setData]=useState<Snapshot>(empty),[running,setRunning]=useState(false),[pausing,setPausing]=useState(false),[loading,setLoading]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(''),[job,setJob]=useState<CodexJob|null>(null),[active,setActive]=useState<Entry|null>(null),[pending,setPending]=useState<(Claim&{text:string;model:string})|null>(null),[exporting,setExporting]=useState(false),[retrying,setRetrying]=useState(false);
+ const unpublishedReview=useRef<{key:string;review:BoundaryReview}|null>(null);
  const backgroundReview=useRef<AbortController|null>(null);
  const settings=useRef({model,effort});settings.current={model,effort};
  const mounted=useRef(true),controller=useRef<AbortController|null>(null),pauseRequested=useRef(false),viewRef=useRef(view),loadId=useRef(0),cache=useRef(new Map<string,PageText[]>());viewRef.current=view;
@@ -56,7 +57,7 @@ export default function FullTranslation({paper,page,demo,getPages,onPage,onSaved
   if(controller.current||running||pending||retrying||blocked)return;if(demo){notify('请先导入自己的 PDF，再使用全文翻译。');return;}if(!c.ready){c.open();return;}
   const ctrl=new AbortController();controller.current=ctrl;pauseRequested.current=false;setPausing(false);setRunning(true);setError('');setMessage('正在恢复云端进度…');let claimed:Claim|null=null;
   let ahead:Promise<void>|null=null,reviewError:Error|null=null,serial=false;
-  let initialView=viewRef.current;
+  let showFirstTranslation=viewRef.current===1;
   const stopBackground=()=>backgroundReview.current?.abort();
   ctrl.signal.addEventListener('abort',stopBackground,{once:true});
   try{
@@ -66,10 +67,11 @@ export default function FullTranslation({paper,page,demo,getPages,onPage,onSaved
    async function prepareNext(background=false,signal=ctrl.signal){
     requireSegmentationBridge(desktopBridge()?.version||c.status?.version);
     if(!account?.id)throw Error('请先登录 Paperleaf');
+    const cacheKey=account.id+':'+paper.id+':'+extraction;
     if(review===undefined){
      const saved=await api<PlanState>(`/api/full-translation?paper=${paper.id}&mode=${extraction}&plan=1`);
-     if(saved.complete){needsReview=false;return;}
-     review=saved.review;
+     if(saved.complete){needsReview=false;unpublishedReview.current=null;return;}
+     review=unpublishedReview.current?.key===cacheKey?unpublishedReview.current.review:saved.review;
      if(!review){
       const key=account.id+':full-translation:'+extraction;
       const legacy=await readArgumentCache(key,paper.id).catch(()=>null);
@@ -82,7 +84,8 @@ export default function FullTranslation({paper,page,demo,getPages,onPage,onSaved
      }
     }
     if(signal.aborted||pauseRequested.current)return;
-    const checked=await reviewNextBoundaryBatch({review,title:paper.title,totalPages:paper.pages,group:argumentBatches,...settings.current,
+    const pendingDecision=unpublishedReview.current?.key===cacheKey?unpublishedReview.current.review:null;
+    const checked=pendingDecision?{review:pendingDecision}:await reviewNextBoundaryBatch({review,title:paper.title,totalPages:paper.pages,group:argumentBatches,...settings.current,
      signal,runTask:runCodexTask,onProgress:(j:CodexJob|null,label:string)=>{
       if(!mounted.current||signal.aborted)return;
       if(background){if(!j)setReviewProgress('正在确认后续段落');}
@@ -90,7 +93,9 @@ export default function FullTranslation({paper,page,demo,getPages,onPage,onSaved
      }
     });
     signal.throwIfAborted();
+    unpublishedReview.current={key:cacheKey,review:checked.review};
     const saved=await api<PlanState>('/api/full-translation',{method:'POST',body:JSON.stringify({action:'prepareAIProgress',paperId:paper.id,mode:extraction,review:checked.review})});
+    unpublishedReview.current=null;
     review=saved.review||checked.review;
     needsReview=!saved.complete;
     if(mounted.current){
@@ -109,6 +114,7 @@ export default function FullTranslation({paper,page,demo,getPages,onPage,onSaved
      // Another local task may occupy the second slot. Fall back to a single
      // request after the current translation. Surface remote/model errors once.
      serial=true;
+     if(mounted.current)setReviewProgress('后续分段等待恢复');
      if(!reason.message.includes('已有任务正在生成'))reviewError=reason;
     }).finally(()=>{if(backgroundReview.current===background)backgroundReview.current=null;});
    }
@@ -124,10 +130,8 @@ export default function FullTranslation({paper,page,demo,getPages,onPage,onSaved
     if(!claimed){if(ahead){await ahead;ahead=null;continue;}if(needsReview){await prepareNext();continue;}const latest=await refresh();setMessage(latest.stats.running?'其他窗口有翻译任务正在处理，可刷新查看。':latest.stats.error?'部分段落失败，可重试失败段落。':latest.stats.skipped?'可翻译段落已完成；已跳过无正文或无可提取文字的页面。':'全文翻译已完成。');break;}
     if(ctrl.signal.aborted||pauseRequested.current){await patch({action:'release',id:claimed.entry.id,lease:claimed.lease});claimed=null;break;}
     const current=claimed;setActive(current.entry);setJob(null);setMessage(`正在翻译 · 第 ${current.entry.page} 页，第 ${current.entry.ordinal+1} 段`);
-    if(initialView===1&&viewRef.current===1&&snapshot.stats.done===0&&current.entry.page!==1){
-     initialView=0;
-     setView(current.entry.page);
-    }else initialView=0;
+    if(showFirstTranslation&&viewRef.current===1&&snapshot.stats.done===0&&current.entry.page!==1)setView(current.entry.page);
+    showFirstTranslation=false;
     const sourcePages=semantic?null:await pagesFor(current.entry.page);
     const pieces=boundedParagraphs([current.entry.original]);
     const texts:string[]=[];let usedModel='';const translationSettings={...settings.current};
@@ -147,7 +151,7 @@ export default function FullTranslation({paper,page,demo,getPages,onPage,onSaved
     const completed={...current,text:result.text,model:result.model};if(mounted.current)setPending(completed);
     try{await complete(completed);claimed=null;}catch(e){claimed=null;setError('译文已生成，但云端保存失败。请重试保存后继续，避免重复消耗额度。');break;}
    }
-   if(pauseRequested.current){setMessage('已暂停，已完成的段落保存在云端。');await refresh();}
+   if(pauseRequested.current){setReviewProgress(needsReview?'分段已暂停':'');setMessage('已暂停，已完成的段落保存在云端。');await refresh();}
   }catch(e){
    if(claimed){try{await patch({action:ctrl.signal.aborted?'release':'fail',id:claimed.entry.id,lease:claimed.lease,error:(e as Error).message})}catch{}}
    if(mounted.current){if(ctrl.signal.aborted&&pauseRequested.current){setError('');setMessage('已暂停，已判别的批次可继续使用。')}else setError(ctrl.signal.aborted?'翻译已停止。':(e as Error).message);await refresh().catch(()=>{});}
