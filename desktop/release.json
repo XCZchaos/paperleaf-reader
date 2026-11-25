@@ -1,28 +1,28 @@
 {
-  "version": "1.5.4",
+  "version": "1.5.5",
   "electronVersion": "45.2.2",
   "codexVersion": "0.165.0",
   "sizeMB": 200.7,
-  "sha256": "8027427e129b030fbc09318b52b04bb9f63fc3d8d00e0db157949ce578e09a19",
-  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.4/Paperleaf-Setup-1.5.4-Windows-x64.exe",
+  "sha256": "8312c546d3fa05046aac4da72aabdf8544b9768a22336888e5268fb170465494",
+  "downloadUrl": "https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.5/Paperleaf-Setup-1.5.5-Windows-x64.exe",
   "date": "2026-11-25",
   "notes": [
-    "AI 确认首段边界后即开始翻译。读当前段时可以继续核对后文，跨页续句合并后翻译。论证精读同步提前显示译文和批注。",
-    "全文译文和分段进度可暂停续做。翻译会参考相邻段落和前文译法，方便阅读缩写、术语和跨段指代。",
-    "默认使用 Codex 官方连接，可手动选择 HTTP 兼容模式。测试 GPT 只发一条短消息，界面区分普通 HTTP 429 和明确的使用上限。"
+    "同一篇论文中继续追问时，阅读范围和设置一致即可沿用上一轮 Codex 会话。界面会显示本轮是新会话还是沿用会话。",
+    "默认连接连续出现两次传输故障后，自动模式会让接下来十分钟内的新请求使用 HTTP 流式连接。可手动固定连接方式，保留所选模型和思考强度。",
+    "任务进度读取遇到短暂故障时会继续查询原任务。若回答最终中断，仍可查看已收到的文字和断流记录。"
   ],
   "macPackages": {
     "arm64": {
-      "size": 259060481,
-      "sha256": "9447e6a1c716a37c7d995dad2f30e63d99c2d2856d8c3af1bf65410f8ebfafce"
+      "size": 259062745,
+      "sha256": "7a984a4c1c97a8e4a35a75e73ffc0bbef449b3d2fc1a6550b895634ff4b03cb9"
     },
     "x64": {
-      "size": 276219734,
-      "sha256": "c6cb692914877fa57d07080ecd50a95dfa5e3b8b7559ef13a07773395568f1ce"
+      "size": 276219936,
+      "sha256": "7160f2d7dc5e40fe038a4520c001a474eeeb6e677865f5ef6b395822f09e8dfd"
     }
   },
   "buildRuns": {
-    "windows": 45574355912,
-    "macos": 45574356600
+    "windows": 45583037570,
+    "macos": 45583037498
   }
 }

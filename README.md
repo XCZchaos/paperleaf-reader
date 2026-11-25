@@ -8,13 +8,17 @@
 
 Paperleaf 将文献管理、PDF 阅读、中英对照、研究笔记、单词积累和 GPT 问答放在同一张工作台上。资料由账号云端保存，Windows 和 macOS 桌面版内置 Codex，通过官方账号授权调用 GPT，帮助你从日常精读走到组会汇报。
 
-[桌面版下载与说明](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [下载 Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.4/Paperleaf-Setup-1.5.4-Windows-x64.exe) · [最新发行版](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [English](README.en.md)
+[桌面版下载与说明](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [下载 Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.5/Paperleaf-Setup-1.5.5-Windows-x64.exe) · [最新发行版](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [English](README.en.md)
 
 | 当前版本 | 桌面平台 | 界面 | 项目状态 |
 | --- | --- | --- | --- |
-| **1.5.4** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · 复古纸页 · 夜读主题 | 公开源码，持续迭代；桌面预览版 |
+| **1.5.5** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · 复古纸页 · 夜读主题 | 公开源码，持续迭代；桌面预览版 |
 
 Paperleaf 是独立开发的应用，并非 OpenAI 官方产品。模型访问与额度取决于你已登录的 Codex 账号。
+
+## 1.5.5 · 续用 Codex 对话与断流恢复
+
+在同一篇论文、相同原文范围内连续提问时，可以沿用上一轮 Codex 会话。进度区分别显示会话就绪和回答流重试。自动连接在同一轮连续遇到两次传输故障后，会让随后的新请求暂用 HTTP 流式连接。[更新说明](docs/releases/v1.5.5.md)
 
 ## 1.5.4 · 边分段边翻译
 
@@ -138,7 +142,7 @@ Windows 和 macOS 安装包都内置 Codex。Mac 用户按芯片选择 PKG 安�
 
 ### Windows 首次使用
 
-1. 下载 [Paperleaf-Setup-1.5.4-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.4/Paperleaf-Setup-1.5.4-Windows-x64.exe)，双击安装。安装包约 **201 MiB**，无需解压 ZIP。
+1. 下载 [Paperleaf-Setup-1.5.5-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.5/Paperleaf-Setup-1.5.5-Windows-x64.exe)，双击安装。安装包约 **201 MiB**，无需解压 ZIP。
 2. 打开 Paperleaf，先通过 ChatGPT 验证网站访问身份，再注册或登录 Paperleaf 账号。为 Paperleaf 设置独立密码，并保存只显示一次的恢复码。
 3. 打开“连接 Codex”，点击“使用 ChatGPT 登录”，在系统浏览器完成官方授权，返回阅读器。
 4. 点击“测试 GPT”，确认能够收到真实回复；此操作会消耗少量账号额度，并显示首次输出耗时、总耗时和重试次数。
@@ -194,7 +198,7 @@ flowchart TB
   Codex -->|"账号授权 · Codex 连接"| Model["OpenAI 模型服务"]
 ```
 
-桌面版加载同一个 HTTPS 网站，并在本机运行内置 Codex。云端负责资料与记录，本机连接程序负责向 Codex 提交限定的阅读任务。1.5.4 默认使用 Codex 内置连接，在连接面板可手动选择 HTTP 流式兼容模式。
+桌面版加载同一个 HTTPS 网站，并在本机运行内置 Codex。云端负责资料与记录，本机连接程序负责向 Codex 提交限定的阅读任务。1.5.5 的自动模式优先使用 Codex 内置连接，连续两次传输故障后，后续请求将暂用 HTTP。也可在连接面板固定使用 HTTP 流式兼容模式。
 
 | 数据 | 保存位置 / 流向 |
 | --- | --- |
@@ -368,6 +372,7 @@ node scripts/check-vocabulary-live.mjs --profile /absolute/path/to/already-signe
 
 | 版本 | 重点 |
 | --- | --- |
+| [1.5.5](docs/releases/v1.5.5.md) | 追问续用会话，区分回答流中断，记住手动选择的连接方式 |
 | [1.5.4](docs/releases/v1.5.4.md) | 确认一段就翻译，跨页续句和已完成译文可续用 |
 | [1.5.3](docs/releases/v1.5.3.md) | 翻译前由 AI 逐段判别，文献库侧栏独立滚动 |
 | [1.5.2](docs/releases/v1.5.2.md) | 分段检查、不同版式与 macOS 按芯片更新 |

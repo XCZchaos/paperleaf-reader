@@ -12,6 +12,8 @@ class FakeRPC extends EventEmitter {
   if(method==='account/login/start')return{type:'chatgpt',loginId:'fixture-login',authUrl:'https://auth.openai.com/fixture'};
   if(method==='account/logout'){this.loggedIn=false;return{}};
   if(method==='thread/start'){assert.equal(params.permissions,'paperleaf_reading');assert(!('sandbox' in params));return{thread:{id:'thread-'+(++this.seq)},model:'fixture-model'};}
+  if(method==='turn/start'&&params.threadId===this.missingThread){throw Error('thread not found: '+params.threadId);}
+  if(method==='turn/start'&&params.threadId===this.uncertainThread){throw Error('Codex 请求超时，请检查连接程序与网络');}
   if(method==='turn/start'){if(params.input[0].text==='请只回复 OK。')assert.equal(params.summary,undefined);else assert.equal(params.summary,'auto');assert.equal(params.effort,'high');assert(!('sandboxPolicy' in params));return{turn:{id:'turn-'+(++this.turns),status:'inProgress'}};}
   return{};
  }
@@ -112,6 +114,14 @@ try{
  finishAnswer(forked,'Branch');finishAnswer(continued,'Second answer');
  const scoped=await postJob(newRequest({paperId:'paper-A',conversationId:first.id,parentId:follow.id,pages:[{page:2,text:'Different page'}],history:[...history,{role:'user',text:follow.question},{role:'assistant',text:'Second answer'}]}));
  assert.notEqual(scoped.threadId,continued.threadId);assert(lastCall('turn/start').input[0].text.includes('Different page'));finishAnswer(scoped,'New scope');
+ const recover=newRequest({paperId:'paper-A',conversationId:first.id,parentId:scoped.id,pages:[{page:2,text:'Different page'}],history:[...history,{role:'user',text:follow.question},{role:'assistant',text:'Second answer'},{role:'user',text:payload.question},{role:'assistant',text:'New scope'}]});
+ rpc.missingThread=scoped.threadId;
+ const unlocked=await postJob(recover);assert.equal(unlocked.status,'running');assert.notEqual(unlocked.threadId,scoped.threadId);
+ assert(lastCall('turn/start').input[0].text.includes('New scope'));finishAnswer(unlocked,'Restored answer');
+ rpc.uncertainThread=unlocked.threadId;
+ const beforeTimeout=rpc.calls.filter(c=>c.method==='turn/start').length;
+ const unknown=await postJob({...recover,id:crypto.randomUUID(),parentId:recover.id,history:[...recover.history,{role:'user',text:recover.question},{role:'assistant',text:'Restored answer'}]});
+ assert.equal(unknown.status,'error');assert.equal(rpc.calls.filter(c=>c.method==='turn/start').length,beforeTimeout+1,'An ambiguous turn/start failure must never replay the question');
  const proof=await postJob(newRequest({}));
  const report=(j,code)=>emitTo(j,'error',{willRetry:true,error:{codexErrorInfo:code}});
  const rate={responseStreamConnectionFailed:{httpStatusCode:429}};

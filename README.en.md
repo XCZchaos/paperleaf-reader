@@ -8,13 +8,17 @@
 
 Paperleaf brings PDF reading, bilingual translation, research notes, vocabulary, and GPT conversations into one workspace. Your account stores your library in the cloud. The Windows and macOS clients bundle Codex and uses official account authorization for model requests.
 
-[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.4/Paperleaf-Setup-1.5.4-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
+[Desktop downloads and guide](https://paperleaf-xcz-reader.shamboo2003.chatgpt.site/) · [Download Windows EXE](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.5/Paperleaf-Setup-1.5.5-Windows-x64.exe) · [Latest release](https://github.com/XCZchaos/paperleaf-reader/releases/latest) · [简体中文](README.md)
 
 | Current version | Desktop platform | Interface | Status |
 | --- | --- | --- | --- |
-| **1.5.4** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
+| **1.5.5** | Windows x64 · macOS Apple Silicon / Intel | shadcn/ui · paper-and-ink design · dark theme | Public source, actively iterated; desktop preview |
 
 The application interface is primarily Chinese. Paperleaf is an independent application, not an official OpenAI product. Model access and usage limits depend on the signed-in Codex account.
+
+## 1.5.5 · Continue a Codex conversation through follow-ups
+
+Follow-up questions about the same paper and page range can use the previous Codex thread. The timeline distinguishes a ready session from a retry during an answer. After two consecutive transport interruptions, automatic mode temporarily uses HTTP streaming for subsequent requests. [Release notes](docs/releases/v1.5.5.md)
 
 ## 1.5.4 · Read the first translation while later paragraphs are reviewed
 
@@ -132,7 +136,7 @@ The Windows and macOS installers include Codex. Mac users can install the PKG fo
 
 ### First launch on Windows
 
-1. Download [Paperleaf-Setup-1.5.4-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.4/Paperleaf-Setup-1.5.4-Windows-x64.exe) and run the installer. It is approximately **201 MiB**; no ZIP extraction is needed.
+1. Download [Paperleaf-Setup-1.5.5-Windows-x64.exe](https://github.com/XCZchaos/paperleaf-reader/releases/download/v1.5.5/Paperleaf-Setup-1.5.5-Windows-x64.exe) and run the installer. It is approximately **201 MiB**; no ZIP extraction is needed.
 2. Open Paperleaf, verify your website identity through ChatGPT, then register or sign in to Paperleaf. Use an independent Paperleaf password and keep the recovery code, which is displayed only once.
 3. Open the Codex connection panel and choose “使用 ChatGPT 登录”. Complete official authorization in the system browser, then return to the reader.
 4. Run “测试 GPT” to verify a real reply. This uses a small amount of account quota and reports first output, total duration, and retries.
@@ -188,7 +192,7 @@ flowchart TB
   Codex -->|"Account auth · Codex connection"| Model["OpenAI model service"]
 ```
 
-The desktop client loads the same HTTPS website and runs bundled Codex locally. Cloud APIs store library records; the local bridge submits bounded reading tasks. Version 1.5.4 uses the built-in Codex provider by default. An HTTP compatibility option is available in the connection panel.
+The desktop client loads the same HTTPS website and runs bundled Codex locally. Cloud APIs store library records; the local bridge submits bounded reading tasks. In version 1.5.5 automatic mode starts with the built-in Codex provider and temporarily uses HTTP for new requests after two consecutive transport failures. Readers can also pin the HTTP option in the connection panel.
 
 | Data | Storage / destination |
 | --- | --- |
@@ -360,6 +364,7 @@ Use an already-authorized Codex profile that you are entitled to access. Where s
 
 | Version | Highlights |
 | --- | --- |
+| [1.5.5](docs/releases/v1.5.5.md) | Continue the previous thread and recover from interrupted streams |
 | [1.5.4](docs/releases/v1.5.4.md) | Start translating as soon as a paragraph is confirmed |
 | [1.5.3](docs/releases/v1.5.3.md) | Semantic paragraph review before translation and independent sidebar scrolling |
 | [1.5.2](docs/releases/v1.5.2.md) | Layout-aware paragraph checks and per-architecture Mac updates |
