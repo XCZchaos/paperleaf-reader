@@ -1,7 +1,7 @@
 import {validateAnnotations} from '@/lib/pdf-annotations.mjs';
 import {validateVocabulary} from '@/companion/research.mjs';
 import {identity,db,fail,json,str} from '@/lib/server';
-export async function GET(req:Request){try{const owner=await identity(req),paper=new URL(req.url).searchParams.get('paper');const rows=await db().prepare('SELECT kind,value,updated FROM reading_states WHERE owner=? AND paper_id=?').bind(owner,paper).all();return json(Object.fromEntries(rows.results.map(r=>[r.kind,{value:JSON.parse(String(r.value)),updated:r.updated}])))}catch(e){return fail(e)}}
+export async function GET(req:Request){try{const owner=await identity(req),paper=new URL(req.url).searchParams.get('paper');const rows=await db().prepare("SELECT kind,value,updated FROM reading_states WHERE owner=? AND paper_id=? AND kind IN ('draft','translation','annotations')").bind(owner,paper).all();return json(Object.fromEntries(rows.results.map(r=>[r.kind,{value:JSON.parse(String(r.value)),updated:r.updated}])))}catch(e){return fail(e)}}
 export async function PATCH(req:Request){try{
  const owner=await identity(req),text=await req.text();if(text.length>700000)throw Error('阅读记录过长，请先导出保存');const b=JSON.parse(text),kind=str(b.kind);
  if(!['draft','translation','annotations'].includes(kind))throw Error('记录类型不正确');const paper=await db().prepare('SELECT pages FROM papers WHERE owner=? AND id=?').bind(owner,str(b.paperId)).first();if(!paper)throw Error('NOT_FOUND');

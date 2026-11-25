@@ -132,6 +132,36 @@ await data(await call('full','POST',{body:{action:'prepare',paperId:p.id,mode:'b
 const aiClaim=await data(await call('full','POST',{body:{action:'claim',paperId:p.id,mode:'body-ai'}}));
 await data(await call('full','PATCH',{body:{action:'renew',id:aiClaim.entry.id,paperId:p.id,mode:'body-ai',lease:aiClaim.lease}}));
 await data(await call('full','PATCH',{body:{action:'complete',id:aiClaim.entry.id,paperId:p.id,mode:'body-ai',lease:aiClaim.lease,text:'Long translation '.repeat(1800),model:'fixture'}}));
+// The tail can join across a review batch. A second device can translate
+// and resume with exactly the same plan, even when its own decisions differ.
+const partialPlan={action:'prepareAIProgress',paperId:p.id,mode:'all-ai',review:{
+ quickStart:true,layout:argumentFixture.review.layout,batches:[{model:'fixture',decisions:argumentFixture.review.batches[0].decisions.slice(0,2)}]
+}};
+const postPlan=review=>call('full','POST',{device:'desktop',body:{...partialPlan,review}});
+assert.equal((await data(await postPlan(partialPlan.review))).complete,false);
+const queueQuery='?paper='+p.id+'&mode=all-ai';
+const firstQueue=await data(await call('full','GET',{query:queueQuery}));
+assert.equal(firstQueue.stats.total,1);assert.deepEqual(firstQueue.preparedPages,[]);
+assert.equal(firstQueue.entries[0].original,partialPlan.review.layout[0].original);
+const fork=structuredClone(partialPlan.review);
+fork.batches[0].decisions[1]={...fork.batches[0].decisions[1],before:'join',reason:'alternative model result'};
+assert.deepEqual((await data(await postPlan(fork))).review,partialPlan.review);
+const planRead=await data(await call('full','GET',{device:'desktop',query:queueQuery+'&plan=1'}));
+assert.deepEqual(planRead.review,partialPlan.review);
+assert.equal(Object.keys(await data(await call('reading','GET',{query:'?paper='+p.id}))).some(k=>k.startsWith('translation-plan-')),false);
+const firstClaim=await data(await call('full','POST',{body:{...partialPlan,action:'claim'}}));
+await data(await call('full','PATCH',{body:{...partialPlan,action:'complete',id:firstClaim.entry.id,lease:firstClaim.lease,text:'第一段已读',model:'fixture'}}));
+const continued=structuredClone(planRead.review);
+continued.batches.push({model:'fixture',decisions:argumentFixture.review.batches[0].decisions.slice(2)});
+continued.batches[1].decisions[0]={...continued.batches[1].decisions[0],before:'join',reason:'cross-page continuation'};
+assert.equal((await data(await postPlan(continued))).complete,true);
+const finalQueue=await data(await call('full','GET',{query:queueQuery}));
+assert.deepEqual(finalQueue.preparedPages,[1,2,3]);assert.equal(finalQueue.stats.total,4);
+assert.equal(finalQueue.entries[0].id,firstClaim.entry.id);assert.equal(finalQueue.entries[0].text,'第一段已读');
+const secondClaim=await data(await call('full','POST',{body:{...partialPlan,action:'claim'}}));
+assert.equal(secondClaim.before.text,'第一段已读');assert(secondClaim.entry.original.includes(continued.layout[2].original));
+assert.equal((await data(await postPlan(partialPlan.review))).complete,true);
+console.log('PASS: first paragraph available before all boundaries, deferred cross-page tail, cloud checkpoint recovery, conflicting writer and no duplicate translation.');
 const prepare={action:'prepare',paperId:p.id,page:1,paragraphs:['First paragraph.','Second paragraph.']};
 await data(await call('full','POST',{body:prepare}));await data(await call('full','POST',{body:prepare}));
 await data(await call('full','POST',{body:{...prepare,page:4}}),400);

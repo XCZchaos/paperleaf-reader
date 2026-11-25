@@ -1,7 +1,5 @@
 import {identity,db,fail,json,str} from '@/lib/server';
-import {argumentBatches} from '@/lib/argument-study.mjs';
-import {validateReview} from '@/lib/argument-segmentation.mjs';
-import type {ArgumentSource} from '@/lib/argument-types';
+import {closedTranslationPages,publishTranslationPlan,readTranslationPlan} from '@/lib/full-translation-plan';
 const semanticMode=(mode:string)=>mode==='body-ai'||mode==='all-ai';
 function normalize(r:any){return{id:r.id,paperId:r.paper_id,page:r.page,ordinal:r.ordinal,original:r.original,text:r.text,status:r.status,error:r.error,model:r.model,updated:r.updated};}
 function extractionMode(v:unknown){if(v===undefined||v===null)return 'legacy';if(!['legacy','body-v2','all-v2','body-ai','all-ai'].includes(String(v)))throw Error('全文识别模式无效');return String(v)}
@@ -9,39 +7,24 @@ async function owned(owner:string,paper:unknown){const p=await db().prepare('SEL
 export async function GET(req:Request){try{
  const owner=await identity(req),params=new URL(req.url).searchParams,paper=params.get('paper'),p=await owned(owner,paper),page=Number(params.get('page')||1),mode=extractionMode(params.get('mode'));
  if(!Number.isInteger(page)||page<1||page>Number(p.pages))throw Error('页码无效');
+ if(semanticMode(mode)&&params.get('plan')==='1'){
+  const state=await readTranslationPlan(owner,String(paper),mode);
+  return json({complete:state.complete,review:state.plan?.review||null});
+ }
+ const through=semanticMode(mode)?await closedTranslationPages(owner,String(paper),mode,Number(p.pages)):Number(p.pages);
  const counts=await db().prepare('SELECT status,COUNT(*) AS count FROM translation_paragraphs WHERE owner=? AND paper_id=? AND extraction_mode=? GROUP BY status').bind(owner,paper,mode).all();
  const stats:Record<string,number>={queued:0,running:0,done:0,error:0,skipped:0};for(const row of counts.results)stats[String(row.status)]=Number(row.count);stats.total=stats.queued+stats.running+stats.done+stats.error;
  const prepared=await db().prepare('SELECT DISTINCT page FROM translation_paragraphs WHERE owner=? AND paper_id=? AND extraction_mode=? ORDER BY page').bind(owner,paper,mode).all();
  const rows=await db().prepare('SELECT * FROM translation_paragraphs WHERE owner=? AND paper_id=? AND page=? AND extraction_mode=? ORDER BY ordinal').bind(owner,paper,page,mode).all();
  const legacy=await db().prepare("SELECT id FROM translation_paragraphs WHERE owner=? AND paper_id=? AND extraction_mode='legacy' LIMIT 1").bind(owner,paper).first();
- return json({stats,hasLegacy:!!legacy,preparedPages:prepared.results.map(x=>Number(x.page)),entries:rows.results.map(normalize)});
+ return json({stats,hasLegacy:!!legacy,preparedPages:prepared.results.map(x=>Number(x.page)).filter(page=>page<=through),entries:rows.results.map(normalize)});
 }catch(e){return fail(e)}}
 export async function POST(req:Request){try{
  const owner=await identity(req),raw=await req.text();
  if(raw.length>1200000)throw Error('分段计划过大');
  const b=JSON.parse(raw),p=await owned(owner,b.paperId),paper=b.paperId,mode=extractionMode(b.mode);
- if(b.action==='prepareAI'&&semanticMode(mode)){
-  const total=Number(p.pages),checked=validateReview(b.review,total,argumentBatches);
-  if(!checked.complete)throw Error('需要完成全文 AI 分段后再建立翻译队列');
-  const byPage=new Map<number,ArgumentSource[]>();
-  for(const source of checked.sources)byPage.set(source.page,[...(byPage.get(source.page)||[]),source]);
-  const rows=[];
-  let continuedFrom=0,continuedThrough=0;
-  for(let page=1;page<=total;page++){
-   const sources=byPage.get(page)||[];
-   for(const [ordinal,source] of sources.entries()){
-    rows.push({id:crypto.randomUUID(),page,ordinal,original:source.original,reason:''});
-    if(source.endPage){continuedFrom=page;continuedThrough=source.endPage}
-   }
-   if(!sources.length)rows.push({id:crypto.randomUUID(),page,ordinal:0,original:'',reason:page<=continuedThrough?'本页续段已并入第 '+continuedFrom+' 页。':'此页没有可翻译的正文。'});
-  }
-  // Publish the complete first plan in one statement. Concurrent clients may
-  // choose different boundaries; their paragraph rows must never be mixed.
-  await db().prepare(`INSERT INTO translation_paragraphs (id,owner,paper_id,page,ordinal,original,status,error,updated,extraction_mode)
-   SELECT json_extract(value,'$.id'),?,?,json_extract(value,'$.page'),json_extract(value,'$.ordinal'),json_extract(value,'$.original'),
-    CASE WHEN json_extract(value,'$.original')='' THEN 'skipped' ELSE 'queued' END,json_extract(value,'$.reason'),?,?
-   FROM json_each(?) WHERE NOT EXISTS (SELECT 1 FROM translation_paragraphs WHERE owner=? AND paper_id=? AND extraction_mode=?)`).bind(owner,paper,Date.now(),mode,JSON.stringify(rows),owner,paper,mode).run();
-  return json({ok:true});
+ if((b.action==='prepareAI'||b.action==='prepareAIProgress')&&semanticMode(mode)){
+  return json(await publishTranslationPlan(owner,paper,mode,Number(p.pages),b.review,b.action==='prepareAIProgress'));
  }
  if(raw.length>150000)throw Error('内容过长');
  if(b.action==='prepare'&&!semanticMode(mode)){
@@ -54,7 +37,13 @@ export async function POST(req:Request){try{
   const now=Date.now(),token=crypto.randomUUID();
   await db().prepare("UPDATE translation_paragraphs SET status='queued',lease_token='',lease_until=0 WHERE owner=? AND paper_id=? AND status='running' AND lease_until<?").bind(owner,paper,now).run();
   const row=await db().prepare("UPDATE translation_paragraphs SET status='running',lease_token=?,lease_until=?,updated=? WHERE id=(SELECT id FROM translation_paragraphs WHERE owner=? AND paper_id=? AND extraction_mode=? AND status='queued' ORDER BY page,ordinal LIMIT 1) AND status='queued' RETURNING *").bind(token,now+10*60*1000,now,owner,paper,mode).first();
-  return json(row?{entry:normalize(row),lease:token}:null);
+  if(!row)return json(null);
+  if(!semanticMode(mode))return json({entry:normalize(row),lease:token});
+  const before=await db().prepare(`SELECT page,substr(original,-700) AS original,substr(text,-500) AS text FROM translation_paragraphs
+    WHERE owner=? AND paper_id=? AND extraction_mode=? AND original<>'' AND (page,ordinal)<(?,?) ORDER BY page DESC,ordinal DESC LIMIT 1`).bind(owner,paper,mode,row.page,row.ordinal).first();
+  const after=await db().prepare(`SELECT page,substr(original,1,700) AS original FROM translation_paragraphs
+    WHERE owner=? AND paper_id=? AND extraction_mode=? AND original<>'' AND (page,ordinal)>(?,?) ORDER BY page,ordinal LIMIT 1`).bind(owner,paper,mode,row.page,row.ordinal).first();
+  return json({entry:normalize(row),lease:token,before,after});
  }
  throw Error('不支持的翻译操作');
 }catch(e){return fail(e)}}

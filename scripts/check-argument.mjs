@@ -42,7 +42,7 @@ export function fixtureOverview(ids){const f=(text,id)=>({text,sources:ids.inclu
  strongest:f('将结论限制在可观察的证据范围内，并明确给出尚不具备推广依据的原因。','p2-2'),
  weakest:f('分析者判断：核心改进仅以单次准确率呈现，缺乏不确定性估计，难以判断差异的稳定性。','p2-1'),
 };}
-export function completedFixture(){const s=newArgumentStudy(fixturePaper,fixturePages,'body','科研方法 · 第 6 周研讨');const batch=argumentBatches(s.sources)[0];s.review.batches=[{model:'fixture',decisions:batch.map(p=>({id:p.id,before:'keep',splits:[],reason:''}))}];s.batches=[{ids:batch.map(p=>p.id),result:validateArgumentBatch(fixtureBatch(batch),batch),model:'QA fixture — not a live model',effort:'medium'}];s.overview=fixtureOverview(s.sources.map(p=>p.id));s.overviewModel='QA fixture — not a live model';return s;}
+export function completedFixture(){const s=newArgumentStudy(fixturePaper,fixturePages,'body','科研方法 · 第 6 周研讨');const batch=argumentBatches(s.sources)[0];delete s.review.quickStart; /* Saved 1.5.3 fixture. */ s.review.batches=[{model:'fixture',decisions:batch.map(p=>({id:p.id,before:'keep',splits:[],reason:''}))}];s.batches=[{ids:batch.map(p=>p.id),result:validateArgumentBatch(fixtureBatch(batch),batch),model:'QA fixture — not a live model',effort:'medium'}];s.overview=fixtureOverview(s.sources.map(p=>p.id));s.overviewModel='QA fixture — not a live model';return s;}
 
 async function checks(){
  const fixture=completedFixture();assert(studyComplete(fixture));assert.equal(validateArgumentStudy(fixture).sources.length,5);

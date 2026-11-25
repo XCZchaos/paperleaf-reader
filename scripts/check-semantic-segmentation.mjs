@@ -25,7 +25,7 @@ const opts={study:base,signal:ctrl.signal,onProgress:()=>{},runTask,onChange:asy
 await assert.rejects(()=>generateArgumentStudy(opts),{name:'AbortError'});
 assert.equal(snapshot.review.batches.length,1);assert.equal(snapshot.batches.length,0);
 const reviewed=await reviewArgumentStudy({...opts,study:snapshot,signal:new AbortController().signal,onChange:s=>snapshot=validateArgumentStudy(s)});
-assert.equal(calls.length,2);assert(calls[0].next.text.startsWith('This sentence'));assert(calls[1].previous.text.includes('10 was reported.'));
+assert.equal(calls.length,2);assert.equal(calls[0].paragraphs.length,2);assert(calls[0].next.text.includes('3 was reported.'));assert(calls[1].previous.text.includes('2 was reported.'));
 assert.deepEqual(phases,['segmentation','segmentation']);assert.equal(reviewed.sources.length,12);
 const split=reviewed.sources.find(p=>p.original.startsWith('A separate trial'));assert.equal(split.page,2);
 const joined=reviewed.sources.find(p=>p.endPage);assert.equal(joined.page,1);assert.equal(joined.endPage,2);assert(joined.original.endsWith('the previous argument.'));
@@ -33,6 +33,23 @@ assert.equal(reviewed.sources.map(p=>p.original).join('').replace(/\s/g,''),base
 const result=await generateArgumentStudy({...opts,study:reviewed,signal:new AbortController().signal,onChange:async()=>{}});
 assert.equal(calls.length,2);assert.equal(result.batches.flatMap(b=>b.result.paragraphs)[9].original,joined.original);
 assert.equal(result.review.batches.at(-1).decisions.at(-1).before,'uncertain');
+// Pause after the first readable paragraph, before the second boundary request.
+const sequence=[];
+const stop=new AbortController();
+let checkpoint;
+const mixed={...opts,study:base,signal:stop.signal,
+ runTask:async input=>{sequence.push(input.argument.phase);return runTask(input);},
+ onChange:async s=>{checkpoint=validateArgumentStudy(s);if(s.batches.length)stop.abort();}
+};
+await assert.rejects(()=>generateArgumentStudy(mixed),{name:'AbortError'});
+assert.deepEqual(sequence,['segmentation','paragraphs']);
+assert.equal(checkpoint.batches[0].ids.length,1);
+assert.equal(checkpoint.review.batches.length,1);
+assert.equal(checkpoint.batches[0].ids[0],base.sources[0].id);
+const resumed=await generateArgumentStudy({...mixed,study:checkpoint,signal:new AbortController().signal,onChange:s=>validateArgumentStudy(s)});
+assert.deepEqual(sequence,['segmentation','paragraphs','segmentation','paragraphs','paragraphs','overview']);
+assert.deepEqual(resumed.batches.flatMap(b=>b.ids),reviewed.sources.map(p=>p.id));
+assert.equal(resumed.batches.flatMap(b=>b.result.paragraphs)[9].original,joined.original);
 const first=reviewInput(base.sources,[base.sources[0]]);
 for(const wrong of [[],[{...keep(first.paragraphs[0]),id:'p9-9'}],[{...keep(first.paragraphs[0]),before:'join',reason:'no parent'}],[{...keep(first.paragraphs[0]),splits:['Fabricated citation'],reason:'test'}]]){
  assert.throws(()=>validateBoundaryDecisions({decisions:wrong},first));
